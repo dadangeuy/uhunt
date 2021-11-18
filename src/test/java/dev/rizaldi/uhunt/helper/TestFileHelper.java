@@ -1,5 +1,6 @@
 package dev.rizaldi.uhunt.helper;
 
+import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.Assertions;
@@ -32,7 +33,7 @@ public class TestFileHelper {
 
             mainRun.run();
 
-            boolean match = FileUtils.contentEquals(outputFile, resultFile);
+            boolean match = FileUtils.contentEqualsIgnoreEOL(outputFile, resultFile, null);
             Assertions.assertTrue(match);
         }
     }
