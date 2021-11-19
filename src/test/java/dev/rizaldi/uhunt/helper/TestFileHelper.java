@@ -1,6 +1,5 @@
 package dev.rizaldi.uhunt.helper;
 
-import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.Assertions;
