@@ -36,4 +36,21 @@ public class TestFileHelper {
             Assertions.assertTrue(match);
         }
     }
+
+    public static void runSingleTest(File directory, String testName, Runnable mainRunner) throws Exception {
+        File input = directory.listFiles(f -> f.getName().equals(testName + ".in"))[0];
+        File output = directory.listFiles(f -> f.getName().equals(testName + ".out"))[0];
+        File result = new File(directory, testName + ".res");
+
+        InputStream inputStream = new FileInputStream(input);
+        PrintStream resultStream = new PrintStream(result);
+
+        System.setIn(inputStream);
+        System.setOut(resultStream);
+
+        mainRunner.run();
+
+        boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
+        Assertions.assertTrue(match);
+    }
 }
