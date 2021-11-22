@@ -56,10 +56,14 @@ public class TestFileHelper {
         Assertions.assertTrue(match);
     }
 
-    public static File getTestDirectory(Class klass) throws URISyntaxException {
+    public static File getTestDirectory(Class klass) {
         String packageName = klass.getPackage().getName();
         String problem = packageName.replaceAll("[a-zA-Z0-9]+\\.", "");
-        URI testURI = klass.getResource(String.format("/%s", problem)).toURI();
-        return new File(testURI);
+        try {
+            URI testURI = klass.getResource(String.format("/%s", problem)).toURI();
+            return new File(testURI);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
