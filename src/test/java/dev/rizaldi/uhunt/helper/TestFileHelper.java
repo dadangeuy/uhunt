@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 public class TestFileHelper {
     public static void runTest(File testDir, Runnable mainRun) throws Exception {
@@ -52,5 +54,12 @@ public class TestFileHelper {
 
         boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
         Assertions.assertTrue(match);
+    }
+
+    public static File getTestDirectory(Class klass) throws URISyntaxException {
+        String packageName = klass.getPackage().getName();
+        String problem = packageName.replaceAll("[a-zA-Z0-9]+\\.", "");
+        URI testURI = klass.getResource(String.format("/%s", problem)).toURI();
+        return new File(testURI);
     }
 }
