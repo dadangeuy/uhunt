@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.Callable;
 
 public class TestFileHelper {
     public static void runTest(File testDir, Runnable mainRun) throws Exception {
@@ -39,7 +40,7 @@ public class TestFileHelper {
         }
     }
 
-    public static void runSingleTest(File directory, String testName, Runnable mainRunner) throws Exception {
+    public static void runSingleTest(File directory, String testName, ThrowingRunnable mainRunner) throws Exception {
         File input = directory.listFiles(f -> f.getName().equals(testName + ".in"))[0];
         File output = directory.listFiles(f -> f.getName().equals(testName + ".out"))[0];
         File result = new File(directory, testName + ".res");
@@ -56,7 +57,7 @@ public class TestFileHelper {
         Assertions.assertTrue(match);
     }
 
-    public static File getTestDirectory(Class klass) {
+    public static File getTestDirectory(Class<?> klass) {
         String packageName = klass.getPackage().getName();
         String problem = packageName.replaceAll("[a-zA-Z0-9]+\\.", "");
         try {
