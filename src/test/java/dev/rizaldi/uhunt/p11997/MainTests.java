@@ -4,15 +4,22 @@ import dev.rizaldi.uhunt.helper.TestFileHelper;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.net.URL;
 
 public class MainTests {
-    private final String problem = getClass().getPackage().getName().replaceFirst(".*(?=p[0-9]+$)", "");
+    private final File testDirectory = TestFileHelper.getTestDirectory(getClass());
 
     @Test
-    public void example() throws Exception {
-        URL testUrl = getClass().getResource(String.format("/%s", problem));
-        File testDir = new File(testUrl.toURI());
-        TestFileHelper.runTest(testDir, Main::main);
+    public void case1() throws Exception {
+        TestFileHelper.runSingleTest(testDirectory, "1", Main::main);
+    }
+
+    @Test
+    public void case2() throws Exception {
+        TestFileHelper.runSingleTest(testDirectory, "2", Main::main);
+    }
+
+    @Test
+    public void case3() throws Exception {
+        TestFileHelper.runSingleTest(testDirectory, "3", Main::main);
     }
 }

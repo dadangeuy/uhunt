@@ -1,23 +1,28 @@
 package dev.rizaldi.uhunt.p11997;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.PriorityQueue;
-import java.util.Scanner;
 
 // TODO: Time limit exceeded
 public class Main {
-    public static void main(String... args) {
-        Scanner scanner = new Scanner(System.in);
+    public static void main(String... args) throws IOException {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        String line;
 
         int totalArray;
-        int[][] arrays = new int[750][750];
+        int[][] arrays = new int[751][751];
 
-        while (scanner.hasNextInt()) {
-            totalArray = scanner.nextInt();
+        while ((line = in.readLine()) != null && !line.isEmpty()) {
+            totalArray = Integer.parseInt(line);
             for (int i = 0; i < totalArray; i++) {
+                line = in.readLine();
+                String[] numberString = line.split(" ");
                 for (int j = 0; j < totalArray; j++) {
-                    arrays[i][j] = scanner.nextInt();
+                    arrays[i][j] = Integer.parseInt(numberString[j]);
                 }
             }
 
