@@ -40,7 +40,7 @@ public class TestFileHelper {
         }
     }
 
-    public static void runSingleTest(File directory, String testName, ThrowingRunnable mainRunner) throws Exception {
+    public static void runSingleTest(File directory, String testName, ThrowingRunnable mainFunction) throws Exception {
         File input = directory.listFiles(f -> f.getName().equals(testName + ".in"))[0];
         File output = directory.listFiles(f -> f.getName().equals(testName + ".out"))[0];
         File result = new File(directory, testName + ".res");
@@ -51,7 +51,7 @@ public class TestFileHelper {
         System.setIn(inputStream);
         System.setOut(resultStream);
 
-        mainRunner.run();
+        mainFunction.run();
 
         boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
         Assertions.assertTrue(match);
