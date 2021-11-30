@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 
 public class TestFileHelper {
@@ -59,9 +60,9 @@ public class TestFileHelper {
 
     public static File getTestDirectory(Class<?> klass) {
         String packageName = klass.getPackage().getName();
-        String problem = packageName.replaceAll("[a-zA-Z0-9]+\\.", "");
+        String path = packageName.replace("dev.rizaldi.uhunt", "").replaceAll("\\.", "/");
         try {
-            URI testURI = klass.getResource(String.format("/%s", problem)).toURI();
+            URI testURI = klass.getResource(path).toURI();
             return new File(testURI);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
