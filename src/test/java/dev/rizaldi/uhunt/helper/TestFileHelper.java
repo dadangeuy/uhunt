@@ -10,8 +10,8 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.concurrent.Callable;
+import java.net.URL;
+import java.util.Objects;
 
 public class TestFileHelper {
     public static void runTest(File testDir, Runnable mainRun) throws Exception {
@@ -42,9 +42,9 @@ public class TestFileHelper {
     }
 
     public static void runSingleTest(File directory, String testName, ThrowingRunnable mainFunction) throws Exception {
-        File input = directory.listFiles(f -> f.getName().equals(testName + ".in"))[0];
-        File output = directory.listFiles(f -> f.getName().equals(testName + ".out"))[0];
-        File result = new File(directory, testName + ".res");
+        File input = new File(directory, testName + ".i");
+        File output = new File(directory, testName + ".o");
+        File result = new File(directory, testName + ".r");
 
         InputStream inputStream = new FileInputStream(input);
         PrintStream resultStream = new PrintStream(result);
@@ -60,9 +60,12 @@ public class TestFileHelper {
 
     public static File getTestDirectory(Class<?> klass) {
         String packageName = klass.getPackage().getName();
-        String path = packageName.replace("dev.rizaldi.uhunt", "").replaceAll("\\.", "/");
+        String path = packageName
+                .replace("dev.rizaldi.uhunt", "")
+                .replaceAll("\\.", "/");
         try {
-            URI testURI = klass.getResource(path).toURI();
+            URL testURL = Objects.requireNonNull(klass.getResource(path));
+            URI testURI = testURL.toURI();
             return new File(testURI);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
