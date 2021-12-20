@@ -7,72 +7,75 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
-// TODO: Time limit exceeded
 public class Main {
+    public static final int MAX_ELEMENT = 750;
+
     public static void main(String... args) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         String line;
+        String[] lines;
 
         int totalArray;
-        int[][] arrays = new int[751][751];
+        int[][] arrays = new int[MAX_ELEMENT][MAX_ELEMENT];
 
         while ((line = in.readLine()) != null && !line.isEmpty()) {
             totalArray = Integer.parseInt(line);
             for (int i = 0; i < totalArray; i++) {
                 line = in.readLine();
-                String[] numberString = line.split(" ");
+                lines = line.split(" ");
                 for (int j = 0; j < totalArray; j++) {
-                    arrays[i][j] = Integer.parseInt(numberString[j]);
+                    arrays[i][j] = Integer.parseInt(lines[j]);
                 }
             }
 
             Solution solution = new Solution(totalArray, arrays);
-            PriorityQueue<Integer> topSmallest = solution.topSmallest();
+            int[] topSmallest = solution.topSmallest();
 
             for (int i = 0; i < totalArray; i++) {
-                if (i == totalArray - 1) System.out.println(topSmallest.remove());
-                else System.out.format("%d ", topSmallest.remove());
+                System.out.format("%d%c", topSmallest[i], i == totalArray - 1 ? '\n' : ' ');
             }
         }
     }
 }
 
 class Solution {
-    private final int totalArray;
+    private static final PriorityQueue<Integer> descendingq = new PriorityQueue<>(Main.MAX_ELEMENT + 1, Comparator.reverseOrder());
+    private final int totalElement;
     private final int[][] arrays;
-    private static final PriorityQueue<Integer> sumq = new PriorityQueue<>();
-    private static final PriorityQueue<Integer> nextSumq = new PriorityQueue<>(Comparator.reverseOrder());
 
-    public Solution(int totalArray, int[][] arrays) {
-        this.totalArray = totalArray;
+    public Solution(int totalElement, int[][] arrays) {
+        this.totalElement = totalElement;
         this.arrays = arrays;
-
-        sumq.clear();
-        nextSumq.clear();
-        sumq.add(0);
     }
 
-    public PriorityQueue<Integer> topSmallest() {
-        for (int i = 0; i < totalArray; i++) Arrays.sort(arrays[i], 0, totalArray);
+    public int[] topSmallest() {
+        for (int i = 0; i < totalElement; i++) Arrays.sort(arrays[i], 0, totalElement);
 
-        for (int i = 0; i < totalArray; i++) {
-            while (!sumq.isEmpty()) {
-                int prevSum = sumq.remove();
-                if (nextSumq.size() == totalArray && prevSum + arrays[i][0] >= nextSumq.peek()) break;
+        for (int i = 1; i < totalElement; i++) {
+            int[] prev = arrays[i - 1];
+            int[] curr = arrays[i];
 
-                for (int j = 0; j < totalArray; j++) {
-                    int nextSum = prevSum + arrays[i][j];
-                    nextSumq.add(nextSum);
-                    while (nextSumq.size() > totalArray) nextSumq.remove();
-                    if (nextSumq.size() == totalArray && nextSum >= nextSumq.peek()) break;
+            for (int j = 0; j < totalElement; j++) {
+                int sum = prev[j] + curr[0];
+                descendingq.add(sum);
+            }
+
+            for (int j = 0; j < totalElement; j++) {
+                int minSum = prev[j] + curr[0];
+                if (minSum >= descendingq.peek()) break;
+
+                for (int k = 1; k < totalElement; k++) {
+                    int sum = prev[j] + curr[k];
+                    if (sum >= descendingq.peek()) break;
+
+                    descendingq.add(sum);
+                    descendingq.remove();
                 }
             }
 
-            sumq.clear();
-            sumq.addAll(nextSumq);
-            nextSumq.clear();
+            for (int j = totalElement - 1; j >= 0; j--) arrays[i][j] = descendingq.remove();
         }
 
-        return sumq;
+        return arrays[totalElement - 1];
     }
 }
