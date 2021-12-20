@@ -1,22 +1,34 @@
 package dev.rizaldi.uhunt.c3.p12390;
 
-import java.util.Comparator;
-import java.util.PriorityQueue;
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class Main {
-    public static void main(String... args) {
-        Scanner in = new Scanner(System.in);
+    public static int MAX_CITY = 500000;
+
+    public static void main(String... args) throws IOException {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        String line;
+        String[] lines;
+
         int totalCity;
         int totalBox;
-        int[] populations = new int[500001];
+        int[] populations = new int[MAX_CITY];
 
-        while (in.hasNextInt()) {
-            totalCity = in.nextInt();
-            totalBox = in.nextInt();
+        while ((line = in.readLine()) != null && !line.isEmpty()) {
+            lines = line.split(" ");
+
+            totalCity = Integer.parseInt(lines[0]);
+            totalBox = Integer.parseInt(lines[1]);
             if (totalCity == -1 && totalBox == -1) break;
 
-            for (int i = 0; i < totalCity; i++) populations[i] = in.nextInt();
+            for (int i = 0; i < totalCity; i++) {
+                line = in.readLine();
+                populations[i] = Integer.parseInt(line);
+            }
+
+            in.readLine();
 
             Solution solution = new Solution(totalCity, totalBox, populations);
             int population = solution.getMaximumPerBox();
@@ -27,10 +39,6 @@ public class Main {
 }
 
 class Solution {
-    private static final Comparator<int[]> SORT_BY_POPULATION_PER_BOX = Comparator
-            .<int[]>comparingDouble(v -> (double) v[0] / (double) v[1])
-            .reversed();
-    private static final PriorityQueue<int[]> QUEUE = new PriorityQueue<>(SORT_BY_POPULATION_PER_BOX);
     private final int totalCity;
     private final int totalBox;
     private final int[] populations;
@@ -42,33 +50,37 @@ class Solution {
     }
 
     public int getMaximumPerBox() {
-        PriorityQueue<int[]> cityq = newQueue();
-        for (int i = 0; i < totalCity; i++) {
-            int population = populations[i];
-            cityq.add(new int[]{population, 1});
+        int lo = 1;
+        int hi = maxPopulation();
+
+        while (lo < hi) {
+            int mi = (lo + hi) / 2;
+            int requiredBox = countBox(mi);
+
+            boolean satisfied = requiredBox <= totalBox;
+            if (satisfied) hi = mi;
+            else lo = mi + 1;
         }
 
-        for (int i = totalCity; i < totalBox; i++) {
-            int[] city = cityq.remove();
-            int population = city[0];
-            int box = city[1];
-
-            if (population == box) return 1;
-
-            cityq.add(new int[]{population, box + 1});
-        }
-
-        if (cityq.isEmpty()) return 0;
-
-        int[] city = cityq.peek();
-        int population = city[0];
-        int box = city[1];
-
-        return (int) Math.ceil((double) population / (double) box);
+        return hi;
     }
 
-    private PriorityQueue<int[]> newQueue() {
-        QUEUE.clear();
-        return QUEUE;
+    private int maxPopulation() {
+        int max = populations[0];
+        for (int i = 1; i < totalCity; i++) max = Math.max(max, populations[i]);
+        return max;
+    }
+
+    private int countBox(int maxPopulation) {
+        int countBox = 0;
+        for (int i = 0; i < totalCity; i++) {
+            countBox += divCeil(populations[i], maxPopulation);
+        }
+        return countBox;
+    }
+
+    private int divCeil(int a, int b) {
+        boolean divisible = a % b == 0;
+        return a / b + (divisible ? 0 : 1);
     }
 }
