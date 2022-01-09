@@ -1,25 +1,25 @@
 package dev.rizaldi.uhunt.c3.p725;
 
-import dev.rizaldi.uhunt.helper.TestFileHelper;
+import dev.rizaldi.uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
 public class MainTests {
-    private final File testDirectory = TestFileHelper.getTestDirectory(getClass());
+    private final File testDirectory = TestHelper.getDirectory(getClass());
 
     @Test
     public void sample() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "sample", Main::main);
+        TestHelper.run(Main::main, testDirectory, "sample");
     }
 
     @Test
     public void udebug1() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "udebug_1", Main::main);
+        TestHelper.run(Main::main, testDirectory, "udebug_1");
     }
 
     @Test
     public void udebug2() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "udebug_2", Main::main);
+        TestHelper.run(Main::main, testDirectory, "udebug_2");
     }
 }

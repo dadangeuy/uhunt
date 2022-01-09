@@ -1,25 +1,25 @@
 package dev.rizaldi.uhunt.c3.p674;
 
-import dev.rizaldi.uhunt.helper.TestFileHelper;
+import dev.rizaldi.uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
 public class MainTests {
-    private final File testDirectory = TestFileHelper.getTestDirectory(getClass());
+    private final File testDirectory = TestHelper.getDirectory(getClass());
 
     @Test
     public void sample() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "sample", Main::main);
+        TestHelper.run(Main::main, testDirectory, "sample");
     }
 
     @Test
     public void uva() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "uva", Main::main);
+        TestHelper.run(Main::main, testDirectory, "uva");
     }
 
     @Test
     public void feodorv() throws Exception {
-        TestFileHelper.runSingleTest(testDirectory, "feodorv", Main::main);
+        TestHelper.run(Main::main, testDirectory, "feodorv");
     }
 }

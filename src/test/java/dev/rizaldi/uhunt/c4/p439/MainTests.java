@@ -1,23 +1,23 @@
 package dev.rizaldi.uhunt.c4.p439;
 
-import dev.rizaldi.uhunt.helper.TestFileHelper;
+import dev.rizaldi.uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 
 public class MainTests {
-    private final File directory = TestFileHelper.getTestDirectory(getClass());
+    private final File directory = TestHelper.getDirectory(getClass());
 
     @Test
     @Timeout(3)
     public void sample() throws Exception {
-        TestFileHelper.runSingleTest(directory, "sample", Main::main);
+        TestHelper.run(Main::main, directory, "sample");
     }
 
     @Test
     @Timeout(3)
     public void feodorv() throws Exception {
-        TestFileHelper.runSingleTest(directory, "feodorv", Main::main);
+        TestHelper.run(Main::main, directory, "feodorv");
     }
 }

@@ -1,19 +1,15 @@
 package dev.rizaldi.uhunt.c2.p1203;
 
-import dev.rizaldi.uhunt.helper.TestFileHelper;
+import dev.rizaldi.uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.net.URL;
 
 public class MainTests {
+    private final File directory = TestHelper.getDirectory(getClass());
 
     @Test
     public void example() throws Exception {
-        String pkg = this.getClass().getPackage().getName();
-        String problem = pkg.split("\\.")[3];
-        URL testUrl = this.getClass().getResource(String.format("/%s", problem));
-        File testDir = new File(testUrl.toURI());
-        TestFileHelper.runTest(testDir, Main::main);
+        TestHelper.run(Main::main, directory, "1");
     }
 }
