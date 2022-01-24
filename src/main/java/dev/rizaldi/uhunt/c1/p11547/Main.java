@@ -14,7 +14,8 @@ public class Main {
         for (int i = 0; i < totalCase; i++) {
             int n = in.nextInt();
             int ans = (((((n * 567) / 9) + 7492) * 235) / 47) - 498;
-            out.println(Math.abs(ans % 100 - ans % 10) / 10);
+            ans = Math.abs(ans % 100 - ans % 10) / 10;
+            out.println(ans);
         }
 
         in.close();
