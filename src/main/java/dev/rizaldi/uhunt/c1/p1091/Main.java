@@ -3,6 +3,8 @@ package dev.rizaldi.uhunt.c1.p1091;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
@@ -10,7 +12,7 @@ public class Main {
         Scanner in = new Scanner(new BufferedInputStream(System.in, 1 << 16));
         PrintWriter out = new PrintWriter(new BufferedOutputStream(System.out, 1 << 16));
 
-        for (int i = 1; ; i++) {
+        for (int i = 1; in.hasNextInt(); i++) {
             int totalSensor = in.nextInt();
             if (totalSensor == 0) break;
 
@@ -24,34 +26,34 @@ public class Main {
         }
 
         in.close();
+        out.flush();
         out.close();
     }
 }
 
-/**
- * - `bad C` if C check failed
- * - `bad K` if K check failed
- * - `bad code` if unable to decode, invalid bars, missing start/stop
- * - try decode left-right and right-left
- */
 class Solution {
-    private static final int[] ZERO = new int[]{0, 0, 0, 0, 1};
-    private static final int[] ONE = new int[]{1, 0, 0, 0, 1};
-    private static final int[] TWO = new int[]{0, 1, 0, 0, 1};
-    private static final int[] THREE = new int[]{1, 1, 0, 0, 0};
-    private static final int[] FOUR = new int[]{0, 0, 1, 0, 1};
-    private static final int[] FIVE = new int[]{1, 0, 1, 0, 0};
-    private static final int[] SIX = new int[]{0, 1, 1, 0, 0};
-    private static final int[] SEVEN = new int[]{0, 0, 0, 1, 1};
-    private static final int[] EIGHT = new int[]{1, 0, 0, 1, 0};
-    private static final int[] NINE = new int[]{1, 0, 0, 0, 0};
-    private static final int[] DASH = new int[]{0, 0, 1, 0, 0};
-    private static final int[] START_STOP = new int[]{0, 0, 1, 1, 0};
+    // encoding scheme
+    private static final String START_STOP = "00110";
+    private static final Map<String, Character> decodes = new HashMap<String, Character>() {{
+        put("00001", '0');
+        put("10001", '1');
+        put("01001", '2');
+        put("11000", '3');
+        put("00101", '4');
+        put("10100", '5');
+        put("01100", '6');
+        put("00011", '7');
+        put("10010", '8');
+        put("10000", '9');
+        put("00100", '-');
+    }};
 
+    // error
     private static final Exception BAD_CODE = new Exception("bad code");
     private static final Exception BAD_C = new Exception("bad C");
     private static final Exception BAD_K = new Exception("bad K");
 
+    // input
     private final int totalSensor;
     private final int[] sensors;
 
@@ -62,103 +64,90 @@ class Solution {
 
     public String decode() {
         try {
-            // validate length
-            if (sensors.length % 6 != 5) return "bad code";
-            if ((sensors.length + 1) / 6 < 5) return "bad code";
-
-            if (!validMargin(sensors)) return "bad code";
-            int[] bars = convertToBars(sensors);
-            bars = fixOrientation(bars);
-            if (!hasStartStop(bars)) return "bad code";
-
-            StringBuilder decodeBuilder = new StringBuilder();
-            for (int i = 6; i < bars.length - 6; i += 6) {
-                if (equals(bars, i, ZERO)) {
-                    decodeBuilder.append(0);
-                } else if (equals(bars, i, ONE)) {
-                    decodeBuilder.append(1);
-                } else if (equals(bars, i, TWO)) {
-                    decodeBuilder.append(2);
-                } else if (equals(bars, i, THREE)) {
-                    decodeBuilder.append(3);
-                } else if (equals(bars, i, FOUR)) {
-                    decodeBuilder.append(4);
-                } else if (equals(bars, i, FIVE)) {
-                    decodeBuilder.append(5);
-                } else if (equals(bars, i, SIX)) {
-                    decodeBuilder.append(6);
-                } else if (equals(bars, i, SEVEN)) {
-                    decodeBuilder.append(7);
-                } else if (equals(bars, i, EIGHT)) {
-                    decodeBuilder.append(8);
-                } else if (equals(bars, i, NINE)) {
-                    decodeBuilder.append(9);
-                } else if (equals(bars, i, DASH)) {
-                    decodeBuilder.append('-');
-                } else {
-                    throw BAD_CODE;
-                }
-            }
-
-            // check length
-            if (decodeBuilder.length() < 3) throw BAD_CODE;
-
-            String decode = decodeBuilder.toString();
-            String value = decode.substring(0, decode.length() - 2);
-            int c = weight(decode.charAt(decode.length() - 2));
-            int k = weight(decode.charAt(decode.length() - 1));
-
-            if (!validC(value, c)) throw BAD_C;
-            if (!validK(value, k)) throw BAD_K;
-
-            return value;
+            return doDecode();
         } catch (Exception e) {
             return e.getMessage();
         }
     }
 
-    private int[] fixOrientation(int[] bars) throws Exception {
-        boolean startLeft = equals(bars, 0, START_STOP);
-        if (startLeft) return bars;
+    private String doDecode() throws Exception {
+        validateLength();
+        validateWidth();
 
-        bars = reverse(bars);
-        boolean startRight = equals(bars, 0, START_STOP);
-        if (startRight) return bars;
+        int[] rangeNarrow = getRangeNarrow();
+        int[] rangeWide = getRangeWide();
+        String barcode = parseBarcode(sensors, rangeNarrow, rangeWide);
+
+        barcode = fixOrientation(barcode);
+        validateStartStop(barcode);
+        validateSeparator(barcode);
+        String label = parseLabel(barcode);
+
+        validateC(label);
+        validateK(label);
+
+        return label.substring(0, label.length() - 2);
+    }
+
+    private void validateLength() throws Exception {
+        if (totalSensor % 6 != 5) throw BAD_CODE;
+        if ((totalSensor + 1) / 6 < 5) throw BAD_CODE;
+    }
+
+    private void validateWidth() throws Exception {
+        int[] rangeNarrow = getRangeNarrow();
+        int[] rangeWide = getRangeWide();
+        if (rangeNarrow[1] >= rangeWide[0]) throw BAD_CODE;
+
+        for (int narrow = 1; narrow <= 200; narrow++) {
+            int minNarrowPercent = narrow * 95;
+            int maxNarrowPercent = narrow * 105;
+            int minWidePercent = narrow * 2 * 95;
+            int maxWidePercent = narrow * 2 * 105;
+
+            // within 5 percent error margin
+            boolean validNarrow = minNarrowPercent <= rangeNarrow[0] * 100 && rangeNarrow[1] * 100 <= maxNarrowPercent;
+            boolean validWide = minWidePercent <= rangeWide[0] * 100 && rangeWide[1] * 100 <= maxWidePercent;
+            if (validNarrow && validWide) return;
+        }
 
         throw BAD_CODE;
     }
 
-    private int[] convertToBars(int[] sensors) {
+    private String parseBarcode(int[] sensors, int[] rangeNarrow, int[] rangeWide) {
+        StringBuilder builder = new StringBuilder();
+        for (int sensor : sensors) {
+            if (rangeNarrow[0] <= sensor && sensor <= rangeNarrow[1]) builder.append(0);
+            else if (rangeWide[0] <= sensor && sensor <= rangeWide[1]) builder.append(1);
+            else throw new RuntimeException("should be handled by validateWidth() function.");
+        }
+        return builder.toString();
+    }
+
+    private int[] getRangeNarrow() {
         int min = min(sensors);
         int max = max(sensors);
-        double div = (min + max) / 2.0;
+        int div = min + max;
 
-        int[] bars = new int[sensors.length];
-        for (int i = 0; i < sensors.length; i++) {
-            bars[i] = sensors[i] <= div ? 0 : 1;
-        }
-        return bars;
-    }
-
-    private boolean validMargin(int[] sensors) {
-        int min0 = min(sensors), max0 = min0;
-        int max1 = max(sensors), min1 = max1;
-        int div = (min0 + max1) / 2;
+        int maxNarrow = min;
         for (int sensor : sensors) {
-            if (sensor <= div) max0 = Math.max(max0, sensor);
-            else min1 = Math.min(min1, sensor);
+            if (sensor * 2 <= div) maxNarrow = Math.max(maxNarrow, sensor);
         }
 
-        if (min0 * 105 < max0 * 95) return false;
-        if (min1 * 105 < max1 * 95) return false;
-        if (min0 * 2 * 105 < max1 * 95) return false;
-        return min1 * 105 >= max0 * 2 * 95;
+        return new int[]{min, maxNarrow};
     }
 
-    private boolean hasStartStop(int[] bars) {
-        boolean hasStart = equals(bars, 0, START_STOP);
-        boolean hasStop = equals(bars, bars.length - 5, START_STOP);
-        return hasStart && hasStop;
+    private int[] getRangeWide() {
+        int min = min(sensors);
+        int max = max(sensors);
+        int div = min + max;
+
+        int minWide = max;
+        for (int sensor : sensors) {
+            if (sensor * 2 > div) minWide = Math.min(minWide, sensor);
+        }
+
+        return new int[]{minWide, max};
     }
 
     private int min(int... array) {
@@ -173,62 +162,72 @@ class Solution {
         return max;
     }
 
-    private boolean between(int left, int mid, int right) {
-        return left <= mid && mid <= right;
+    private String fixOrientation(String barcode) {
+        return barcode.startsWith(START_STOP) && barcode.endsWith(START_STOP) ? barcode : reverse(barcode);
     }
 
-    private boolean equals(int[] array, int offset, int[] target) {
-        if (offset + target.length > array.length) return false;
-        for (int i = 0; i < target.length; i++)
-            if (array[offset + i] != target[i])
-                return false;
-        return true;
+    private String reverse(String text) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = text.length() - 1; i >= 0; i--) sb.append(text.charAt(i));
+        return sb.toString();
     }
 
-    private int[] reverse(int[] array) {
-        int[] reverseArray = array.clone();
-        for (int i = 0, j = array.length - 1; i < j; i++, j--) {
-            reverseArray[i] = array[j];
-            reverseArray[j] = array[i];
+    private void validateStartStop(String barcode) throws Exception {
+        boolean hasStart = barcode.startsWith(START_STOP);
+        boolean hasStop = barcode.endsWith(START_STOP);
+        if (!hasStart || !hasStop) throw BAD_CODE;
+    }
+
+    private void validateSeparator(String barcode) throws Exception {
+        for (int i = 5; i < barcode.length(); i += 6) {
+            if (barcode.charAt(i) != '0') throw BAD_CODE;
         }
-        return reverseArray;
     }
 
-    private boolean validC(String value, int c) {
-        int expectedC = calculateC(value);
-        return c == expectedC;
+    private String parseLabel(String barcode) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 6; i < barcode.length() - 6; i += 6) {
+            String bi = barcode.substring(i, i + 5);
+            if (!decodes.containsKey(bi)) throw BAD_CODE;
+            char value = decodes.get(bi);
+            sb.append(value);
+        }
+        return sb.toString();
     }
 
-    private boolean validK(String value, int k) {
-        int expectedK = calculateK(value);
-        return k == expectedK;
-    }
-
-    private int calculateC(String value) {
+    private void validateC(String label) throws Exception {
         int sum = 0;
-        int n = value.length();
+        int n = label.length() - 2;
         for (int i = 1; i <= n; i++) {
-            int w = weight(value.charAt(i - 1));
-            int vi = ((n - i) % 10 + 1) * w;
-            sum += vi;
+            int w = weight(label.charAt(i - 1));
+            int cur = (((n - i) % 10) + 1) * w;
+            sum += cur;
+            sum %= 11;
         }
-        return sum % 11;
+
+        int expectedC = sum;
+        int actualC = weight(label.charAt(label.length() - 2));
+        if (expectedC != actualC) throw BAD_C;
     }
 
-    private int calculateK(String value) {
+    private void validateK(String label) throws Exception {
         int sum = 0;
-        int n = value.length();
-        for (int i = 1; i <= n; i++) {
-            int w = weight(value.charAt(i - 1));
-            int vi = ((n - i + 1) % 9 + 1) * w;
-            sum += vi;
+        int n = label.length() - 2;
+        for (int i = 1; i <= n + 1; i++) {
+            int w = weight(label.charAt(i - 1));
+            int cur = (((n - i + 1) % 9) + 1) * w;
+            sum += cur;
+            sum %= 11;
         }
-        sum += ((n - (n + 1) + 1) % 9 + 1) * calculateC(value);
-        return sum % 11;
+
+        int expectedK = sum;
+        int actualK = weight(label.charAt(label.length() - 1));
+        if (expectedK != actualK) throw BAD_K;
     }
 
     private int weight(char c) {
         if (c == '-') return 10;
-        return c - '0';
+        else if ('0' <= c && c <= '9') return c - '0';
+        throw new RuntimeException("unknown weight");
     }
 }
