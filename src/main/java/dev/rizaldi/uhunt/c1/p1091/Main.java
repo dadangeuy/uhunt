@@ -81,8 +81,8 @@ class Solution {
         barcode = fixOrientation(barcode);
         validateStartStop(barcode);
         validateSeparator(barcode);
-        String label = parseLabel(barcode);
 
+        String label = parseLabel(barcode);
         validateC(label);
         validateK(label);
 
@@ -95,23 +95,20 @@ class Solution {
     }
 
     private void validateWidth() throws Exception {
-        int[] rangeNarrow = getRangeNarrow();
-        int[] rangeWide = getRangeWide();
-        if (rangeNarrow[1] >= rangeWide[0]) throw BAD_CODE;
+        int min = min(sensors);
+        int max = max(sensors);
+        int div = min + max;
 
-        for (int narrow = 1; narrow <= 200; narrow++) {
-            int minNarrowPercent = narrow * 95;
-            int maxNarrowPercent = narrow * 105;
-            int minWidePercent = narrow * 2 * 95;
-            int maxWidePercent = narrow * 2 * 105;
-
-            // within 5 percent error margin
-            boolean validNarrow = minNarrowPercent <= rangeNarrow[0] * 100 && rangeNarrow[1] * 100 <= maxNarrowPercent;
-            boolean validWide = minWidePercent <= rangeWide[0] * 100 && rangeWide[1] * 100 <= maxWidePercent;
-            if (validNarrow && validWide) return;
+        int wmin = Integer.MAX_VALUE;
+        int wmax = Integer.MIN_VALUE;
+        for (int sensor : sensors) {
+            int width = sensor * 2 < div ? sensor * 2 : sensor;
+            wmin = Math.min(wmin, width);
+            wmax = Math.max(wmax, width);
         }
 
-        throw BAD_CODE;
+        // exceed 5% error margin
+        if (wmax * 95 > wmin * 105) throw BAD_CODE;
     }
 
     private String parseBarcode(int[] sensors, int[] rangeNarrow, int[] rangeWide) {
@@ -131,7 +128,7 @@ class Solution {
 
         int maxNarrow = min;
         for (int sensor : sensors) {
-            if (sensor * 2 <= div) maxNarrow = Math.max(maxNarrow, sensor);
+            if (sensor * 2 < div) maxNarrow = Math.max(maxNarrow, sensor);
         }
 
         return new int[]{min, maxNarrow};
@@ -144,7 +141,7 @@ class Solution {
 
         int minWide = max;
         for (int sensor : sensors) {
-            if (sensor * 2 > div) minWide = Math.min(minWide, sensor);
+            if (sensor * 2 >= div) minWide = Math.min(minWide, sensor);
         }
 
         return new int[]{minWide, max};
@@ -162,12 +159,14 @@ class Solution {
         return max;
     }
 
-    private String fixOrientation(String barcode) {
-        return barcode.startsWith(START_STOP) && barcode.endsWith(START_STOP) ? barcode : reverse(barcode);
+    private String fixOrientation(String barcode) throws Exception {
+        if (barcode.startsWith(START_STOP)) return barcode;
+        if (barcode.startsWith(reverse(START_STOP))) return reverse(barcode);
+        throw BAD_CODE;
     }
 
     private String reverse(String text) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(text.length());
         for (int i = text.length() - 1; i >= 0; i--) sb.append(text.charAt(i));
         return sb.toString();
     }
@@ -186,7 +185,7 @@ class Solution {
 
     private String parseLabel(String barcode) throws Exception {
         StringBuilder sb = new StringBuilder();
-        for (int i = 6; i < barcode.length() - 6; i += 6) {
+        for (int i = 6; i < barcode.length() - 5; i += 6) {
             String bi = barcode.substring(i, i + 5);
             if (!decodes.containsKey(bi)) throw BAD_CODE;
             char value = decodes.get(bi);
@@ -201,8 +200,7 @@ class Solution {
         for (int i = 1; i <= n; i++) {
             int w = weight(label.charAt(i - 1));
             int cur = (((n - i) % 10) + 1) * w;
-            sum += cur;
-            sum %= 11;
+            sum = (sum + cur) % 11;
         }
 
         int expectedC = sum;
@@ -216,8 +214,7 @@ class Solution {
         for (int i = 1; i <= n + 1; i++) {
             int w = weight(label.charAt(i - 1));
             int cur = (((n - i + 1) % 9) + 1) * w;
-            sum += cur;
-            sum %= 11;
+            sum = (sum + cur) % 11;
         }
 
         int expectedK = sum;
@@ -226,8 +223,6 @@ class Solution {
     }
 
     private int weight(char c) {
-        if (c == '-') return 10;
-        else if ('0' <= c && c <= '9') return c - '0';
-        throw new RuntimeException("unknown weight");
+        return c == '-' ? 10 : c - '0';
     }
 }
