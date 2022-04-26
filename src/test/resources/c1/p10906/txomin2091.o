@@ -1,0 +1,6 @@
+Expression #1: 2+3+(2+3)
+Expression #2: 2+3+4+5
+Expression #3: 2*3*(2*3)
+Expression #4: 2*3*4*5
+Expression #5: (2+3)*(2+3)
+Expression #6: (2+3)*4+5
