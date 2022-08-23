@@ -34,33 +34,66 @@ public class Main {
     }
 }
 
+/**
+ * How to find the winner?
+ *   If total swap is even, second player (carlos) win, else first player (marcelo) win
+ * How to calculate total consecutive swap to sort the array?
+ *   Use merge sort to achieve O(log(n)) sorting complexity
+ *   We can calculate the number of swap needed during merge
+ *   Total swap = total elements left on left-array when merging right-array
+ */
 class Solution {
     private static final String FIRST = "Marcelo";
     private static final String SECOND = "Carlos";
     private final int totalNumber;
     private final int[] numbers;
+    private final int[] mergeNumbers;
 
     public Solution(int totalNumber, int[] numbers) {
         this.totalNumber = totalNumber;
         this.numbers = numbers;
+        this.mergeNumbers = new int[totalNumber];
     }
 
     public String findWinner() {
-        return findWinnerUsingCount();
+        return findWinnerUsingMergeSort();
     }
 
-    private String findWinnerUsingCount() {
-        int totalSwap = 0;
-        for (int i = 0; i < totalNumber; i++) {
-            int countGt = 0;
-            for (int j = i + 1; j < totalNumber; j++) {
-                if (numbers[i] > numbers[j]) {
-                    countGt++;
-                }
+    private String findWinnerUsingMergeSort() {
+        int totalSwap = mergeSort(0, totalNumber - 1);
+        return even(totalSwap) ? SECOND : FIRST;
+    }
+
+    private int mergeSort(int left, int right) {
+        if (right <= left) return 0;
+
+        int mid = (left + right) / 2;
+        int swapLeft = mergeSort(left, mid);
+        int swapRight = mergeSort(mid + 1, right);
+
+        int swapMerge = 0;
+        int p1 = left;
+        int p2 = mid + 1;
+        for (int i = left; i <= right; i++) {
+            int v1 = p1 <= mid ? numbers[p1] : Integer.MAX_VALUE;
+            int v2 = p2 <= right ? numbers[p2] : Integer.MAX_VALUE;
+
+            if (v1 < v2) {
+                mergeNumbers[i] = v1;
+                p1++;
+            } else {
+                swapMerge += (mid + 1) - p1;
+                mergeNumbers[i] = v2;
+                p2++;
             }
-            totalSwap += countGt;
         }
 
-        return ((totalSwap & 1) == 0) ? SECOND : FIRST;
+        System.arraycopy(mergeNumbers, left, numbers, left, right - left + 1);
+
+        return swapLeft + swapRight + swapMerge;
+    }
+
+    private boolean even(int number) {
+        return ((number & 1) == 0);
     }
 }
