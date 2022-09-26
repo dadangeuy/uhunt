@@ -1,0 +1,34 @@
+Command 7: MOVE - moved 11 instead of 25
+Command 8: MOVE - moved 0 instead of 1
+6 window(s):
+13 3 3 8
+16 6 4 3
+16 10 9 1
+16 2 3 2
+19 1 1 4
+7 14 4 6
+Command 7: MOVE - moved 2 instead of 25
+Command 8: MOVE - moved 12 instead of 25
+6 window(s):
+0 3 3 8
+11 6 4 3
+13 10 9 1
+9 0 3 2
+14 1 1 4
+7 2 4 6
+Command 7: MOVE - moved 11 instead of 35
+6 window(s):
+9 13 8 3
+0 7 6 4
+16 16 2 3
+11 16 3 4
+15 19 4 1
+9 16 1 9
+Command 7: MOVE - moved 8 instead of 35
+6 window(s):
+9 0 8 3
+0 7 6 4
+16 3 2 3
+11 11 3 4
+15 6 4 1
+9 13 1 9
