@@ -47,9 +47,9 @@ public class Main {
                 }
             }
 
-            MutableWindow[] mutableWindows = screen.windows();
-            out.format("%d window(s):\n", mutableWindows.length);
-            for (MutableWindow w : mutableWindows) out.format("%d %d %d %d\n", w.x(), w.y(), w.width(), w.height());
+            Window[] windows = screen.windows();
+            out.format("%d window(s):\n", windows.length);
+            for (Window w : windows) out.format("%d %d %d %d\n", w.x(), w.y(), w.width(), w.height());
         }
 
         in.close();
@@ -91,21 +91,24 @@ class Transaction<T> {
         this.uncommitted = null;
     }
 
-    public void update(T updated) {
+    public T update(T updated) {
         this.uncommitted = updated;
+        return this.uncommitted;
     }
 
     public boolean uncommitted() {
         return uncommitted != null;
     }
 
-    public void commit() {
+    public T commit() {
         committed = uncommitted == null ? committed : uncommitted;
         uncommitted = null;
+        return this.committed;
     }
 
-    public void rollback() {
+    public T rollback() {
         this.uncommitted = null;
+        return this.committed;
     }
 
     public T read(boolean committed) {
@@ -123,8 +126,8 @@ final class Screen {
         this.height = height;
     }
 
-    public MutableWindow[] windows() {
-        return windows.toArray(new MutableWindow[0]);
+    public Window[] windows() {
+        return windows.toArray(new Window[0]);
     }
 
     public void open(int x, int y, int w, int h) throws InternalError {
@@ -177,7 +180,7 @@ final class Screen {
     }
 
     private void forcePush(MutableWindow moved, int dx, int dy) {
-        Window movement = moved.movement(dx, dy);
+        Window movement = moved.clone().stretch(dx, dy);
 
         for (MutableWindow existing : windows) {
             if (existing == moved) continue;
@@ -255,6 +258,7 @@ final class Screen {
 }
 
 abstract class Window {
+
     abstract public int x();
 
     abstract public int y();
@@ -298,12 +302,20 @@ abstract class Window {
         return left() <= x && x < right() && top() <= y && y < bottom();
     }
 
-    public final Window movement(int dx, int dy) {
+    public Window stretch(int dx, int dy) {
         int x = Math.min(x(), x() + dx);
         int y = Math.min(y(), y() + dy);
         int width = width() + Math.abs(dx);
         int height = height() + Math.abs(dy);
         return new ImmutableWindow(x, y, width, height);
+    }
+
+    public Window resize(int width, int height) {
+        return new ImmutableWindow(x(), y(), width, height);
+    }
+
+    public Window move(int dx, int dy) {
+        return new ImmutableWindow(x() + dx, y() + dy, width(), height());
     }
 }
 
@@ -342,7 +354,7 @@ final class ImmutableWindow extends Window {
 }
 
 final class MutableWindow extends Window {
-    public Transaction<ImmutableWindow> transaction;
+    public Transaction<Window> transaction;
 
     public MutableWindow(int x, int y, int width, int height) {
         ImmutableWindow w = new ImmutableWindow(x, y, width, height);
@@ -369,12 +381,24 @@ final class MutableWindow extends Window {
         return transaction.read(false).height();
     }
 
-    public void move(int dx, int dy) {
-        transaction.update(new ImmutableWindow(x() + dx, y() + dy, width(), height()));
+    @Override
+    public Window stretch(int dx, int dy) {
+        return transaction.update(super.stretch(dx, dy));
     }
 
-    public void resize(int width, int height) {
-        transaction.update(new ImmutableWindow(x(), y(), width, height));
+    @Override
+    public Window move(int dx, int dy) {
+        return transaction.update(super.move(dx, dy));
+    }
+
+    @Override
+    public Window resize(int width, int height) {
+        return transaction.update(super.resize(width, height));
+    }
+
+    @Override
+    public Window clone() {
+        return new MutableWindow(x(), y(), width(), height());
     }
 
     public int dx() {
