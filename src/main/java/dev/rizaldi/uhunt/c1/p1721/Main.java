@@ -58,7 +58,7 @@ public class Main {
     }
 }
 
-class InternalError extends Exception {
+abstract class InternalError extends Exception {
     public InternalError(String message) {
         super(message);
     }
@@ -82,7 +82,7 @@ final class UnexpectedMoveError extends InternalError {
     }
 }
 
-class Transaction<T> {
+final class Transaction<T> {
     private T committed;
     private T uncommitted;
 
