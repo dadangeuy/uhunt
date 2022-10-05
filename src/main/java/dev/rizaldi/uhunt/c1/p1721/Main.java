@@ -2,12 +2,50 @@ package dev.rizaldi.uhunt.c1.p1721;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
+enum Direction {
+    LEFT, RIGHT, TOP, BOTTOM, NONE;
+
+    public static Direction of(int dx, int dy) {
+        return dx < 0 ? LEFT : dx > 0 ? RIGHT : dy < 0 ? TOP : dy > 0 ? BOTTOM : NONE;
+    }
+}
+
+interface Snapshot<T> {
+    T snapshot();
+
+    void restore(T snapshot);
+}
+
+abstract class InternalError extends Exception {
+    public InternalError(String message) {
+        super(message);
+    }
+}
+
+final class NoWindowError extends InternalError {
+    public NoWindowError() {
+        super("no window at given position");
+    }
+}
+
+final class UnfitWindowError extends InternalError {
+    public UnfitWindowError() {
+        super("window does not fit");
+    }
+}
+
+final class UnexpectedMoveError extends InternalError {
+    public UnexpectedMoveError(int expected, int actual) {
+        super(String.format("moved %d instead of %d", Math.abs(actual), Math.abs(expected)));
+    }
+}
 
 /**
  * 1721 - Window Manager
@@ -15,7 +53,7 @@ import java.util.stream.Collectors;
  * https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=24&page=show_problem&problem=4794
  */
 public class Main {
-    public static void main(String... args) {
+    public static void main(String... args) throws IOException {
         Scanner in = new Scanner(new BufferedInputStream(System.in, 1 << 16));
         PrintWriter out = new PrintWriter(new BufferedOutputStream(System.out, 1 << 16));
 
@@ -58,66 +96,40 @@ public class Main {
     }
 }
 
-abstract class InternalError extends Exception {
-    public InternalError(String message) {
-        super(message);
-    }
-}
+final class Transaction<T extends Snapshot<T>> {
+    private final T object;
+    private T snapshot;
 
-final class NoWindowError extends InternalError {
-    public NoWindowError() {
-        super("no window at given position");
-    }
-}
-
-final class UnfitWindowError extends InternalError {
-    public UnfitWindowError() {
-        super("window does not fit");
-    }
-}
-
-final class UnexpectedMoveError extends InternalError {
-    public UnexpectedMoveError(int expected, int actual) {
-        super(String.format("moved %d instead of %d", Math.abs(actual), Math.abs(expected)));
-    }
-}
-
-final class Transaction<T> {
-    private T committed;
-    private T uncommitted;
-
-    public Transaction(T initial) {
-        this.committed = initial;
-        this.uncommitted = null;
+    public Transaction(T object) {
+        this.object = object;
+        this.snapshot = null;
     }
 
-    public T update(T updated) {
-        this.uncommitted = updated;
-        return this.uncommitted;
+    public void start() {
+        if (snapshot == null) snapshot = object.snapshot();
     }
 
-    public boolean uncommitted() {
-        return uncommitted != null;
+    public void commit() {
+        snapshot = null;
     }
 
-    public T commit() {
-        committed = uncommitted == null ? committed : uncommitted;
-        uncommitted = null;
-        return this.committed;
-    }
-
-    public T rollback() {
-        this.uncommitted = null;
-        return this.committed;
+    public void rollback() {
+        if (committed()) return;
+        object.restore(snapshot);
+        commit();
     }
 
     public T read(boolean committed) {
-        return committed || this.uncommitted == null ? this.committed : this.uncommitted;
+        return !committed || committed() ? object : snapshot;
+    }
+
+    public boolean committed() {
+        return snapshot == null;
     }
 }
 
 final class Screen {
-    private final ArrayList<MutableWindow> windows = new ArrayList<>(256);
+    private final ArrayList<Window> windows = new ArrayList<>(256);
     private final int width;
     private final int height;
 
@@ -131,32 +143,24 @@ final class Screen {
     }
 
     public void open(int x, int y, int w, int h) throws InternalError {
-        MutableWindow created = new MutableWindow(x, y, w, h);
-
-        if (outside(created)) throw new UnfitWindowError();
-        if (overlap(created)) throw new UnfitWindowError();
-
+        Window created = new Window(x, y, w, h);
+        if (outside(created) || overlap(created)) throw new UnfitWindowError();
         windows.add(created);
     }
 
     public void close(int x, int y) throws InternalError {
-        MutableWindow closed = target(x, y);
+        Window closed = target(x, y);
         windows.remove(closed);
     }
 
     public void resize(int x, int y, int w, int h) throws InternalError {
-        MutableWindow resized = target(x, y);
+        Window resized = target(x, y);
+        resized.transaction.start();
         resized.resize(w, h);
-
-        if (outside(resized)) {
+        if (outside(resized) || overlap(resized)) {
             resized.transaction.rollback();
             throw new UnfitWindowError();
         }
-        if (overlap(resized)) {
-            resized.transaction.rollback();
-            throw new UnfitWindowError();
-        }
-
         resized.transaction.commit();
     }
 
@@ -167,10 +171,10 @@ final class Screen {
      * - if pull too much (exceed original position), use original instead (in other words, it's not pushed)
      */
     public void move(int x, int y, int dx, int dy) throws InternalError {
-        MutableWindow moved = target(x, y);
+        Window moved = target(x, y);
 
         forcePush(moved, dx, dy);
-        pullToScreen(dx, dy);
+        pullToScreen(changes(), dx, dy);
 
         int actualDx = moved.dx(), actualDy = moved.dy();
         windows.forEach(w -> w.transaction.commit());
@@ -179,12 +183,13 @@ final class Screen {
         if (actualDy != dy) throw new UnexpectedMoveError(dy, actualDy);
     }
 
-    private void forcePush(MutableWindow moved, int dx, int dy) {
-        Window movement = moved.clone().stretch(dx, dy);
+    private void forcePush(Window moved, int dx, int dy) {
+        Window movement = moved.snapshot().stretch(dx, dy);
 
-        for (MutableWindow existing : windows) {
-            if (existing == moved) continue;
-            if (!existing.overlap(movement)) continue;
+        // push collided windows
+        for (Window existing : windows) {
+            boolean collided = existing != moved && existing.overlap(movement);
+            if (!collided) continue;
 
             int leftDx = movement.left() - existing.right(), rightDx = movement.right() - existing.left();
             int topDy = movement.top() - existing.bottom(), bottomDy = movement.bottom() - existing.top();
@@ -193,137 +198,46 @@ final class Screen {
             forcePush(existing, newDx, newDy);
         }
 
+        // push window
+        moved.transaction.start();
         moved.move(dx, dy);
     }
 
-    private void pullToScreen(int dx, int dy) {
-        List<MutableWindow> changes = changes();
-        if (dx < 0) pullLeft(changes);
-        if (dx > 0) pullRight(changes);
-        if (dy < 0) pullTop(changes);
-        if (dy > 0) pullBottom(changes);
+    private void pullToScreen(List<Window> targets, int dx, int dy) {
+        int minLeft = targets.stream().mapToInt(Window::left).min().orElse(0);
+        int maxRight = targets.stream().mapToInt(Window::right).max().orElse(0);
+        int minTop = targets.stream().mapToInt(Window::top).min().orElse(0);
+        int maxBottom = targets.stream().mapToInt(Window::bottom).max().orElse(0);
+        int pullDx = minLeft < 0 ? -minLeft : maxRight > width ? width - maxRight : 0;
+        int pullDy = minTop < 0 ? -minTop : maxBottom > height ? height - maxBottom : 0;
+        targets.forEach(t -> t.move(pullDx, pullDy));
+
+        Direction direction = Direction.of(dx, dy);
+        targets.stream().filter(t -> !direction.equals(t.direction())).forEach(t -> t.transaction.rollback());
     }
 
-    private void pullLeft(List<MutableWindow> changes) {
-        int minLeft = changes.stream().mapToInt(MutableWindow::left).min().orElse(0);
-        int moveRight = minLeft < 0 ? -minLeft : 0;
-        if (moveRight == 0) return;
-
-        changes.forEach(c -> c.move(moveRight, 0));
-        changes.stream().filter(w -> w.dx() > 0).forEach(c -> c.transaction.rollback());
+    private List<Window> changes() {
+        return windows.stream().filter(w -> !w.transaction.committed()).collect(Collectors.toList());
     }
 
-    private void pullRight(List<MutableWindow> changes) {
-        int maxRight = changes.stream().mapToInt(MutableWindow::right).max().orElse(width);
-        int moveLeft = maxRight > width ? width - maxRight : 0;
-        if (moveLeft == 0) return;
-
-        changes.forEach(c -> c.move(moveLeft, 0));
-        changes.stream().filter(w -> w.dx() < 0).forEach(w -> w.transaction.rollback());
+    private Window target(int x, int y) throws NoWindowError {
+        return windows.stream().filter(w -> w.overlap(x, y)).findFirst().orElseThrow(NoWindowError::new);
     }
 
-    private void pullTop(List<MutableWindow> changes) {
-        int minTop = changes.stream().mapToInt(MutableWindow::top).min().orElse(0);
-        int moveBottom = minTop < 0 ? -minTop : 0;
-        if (moveBottom == 0) return;
-
-        changes.forEach(c -> c.move(0, moveBottom));
-        changes.stream().filter(w -> w.dy() > 0).forEach(w -> w.transaction.rollback());
-    }
-
-    private void pullBottom(List<MutableWindow> changes) {
-        int maxBottom = changes.stream().mapToInt(MutableWindow::bottom).max().orElse(height);
-        int moveUp = maxBottom > height ? height - maxBottom : 0;
-        if (moveUp == 0) return;
-
-        changes.forEach(c -> c.move(0, moveUp));
-        changes.stream().filter(w -> w.dy() < 0).forEach(w -> w.transaction.rollback());
-    }
-
-    private List<MutableWindow> changes() {
-        return windows.stream().filter(w -> w.transaction.uncommitted()).collect(Collectors.toList());
-    }
-
-    private MutableWindow target(int x, int y) throws NoWindowError {
-        return windows.stream().filter(mutableWindow -> mutableWindow.overlap(x, y)).findFirst().orElseThrow(NoWindowError::new);
-    }
-
-    private boolean overlap(MutableWindow target) {
+    private boolean overlap(Window target) {
         return windows.stream().anyMatch(existing -> existing != target && existing.overlap(target));
     }
 
-    private boolean outside(MutableWindow mutableWindow) {
-        return (mutableWindow.left() < 0 || mutableWindow.right() > width || mutableWindow.top() < 0 || mutableWindow.bottom() > height);
+    private boolean outside(Window window) {
+        return (window.left() < 0 || window.right() > width || window.top() < 0 || window.bottom() > height);
     }
 }
 
-abstract class Window {
-
-    abstract public int x();
-
-    abstract public int y();
-
-    abstract public int width();
-
-    abstract public int height();
-
-    public final int left() {
-        return x();
-    }
-
-    public final int right() {
-        return x() + width();
-    }
-
-    public final int top() {
-        return y();
-    }
-
-    public final int bottom() {
-        return y() + height();
-    }
-
-    @Override
-    public final boolean equals(Object object) {
-        if (!(object instanceof Window)) return false;
-        Window o = (Window) object;
-        return x() == o.x() && y() == o.y() && width() == o.width() && height() == o.height();
-    }
-
-    public final boolean overlap(Window o) {
-        boolean onTop = bottom() <= o.top();
-        boolean onBottom = top() >= o.bottom();
-        boolean onLeft = right() <= o.left();
-        boolean onRight = left() >= o.right();
-        return !onTop && !onBottom && !onLeft && !onRight;
-    }
-
-    public final boolean overlap(int x, int y) {
-        return left() <= x && x < right() && top() <= y && y < bottom();
-    }
-
-    public Window stretch(int dx, int dy) {
-        int x = Math.min(x(), x() + dx);
-        int y = Math.min(y(), y() + dy);
-        int width = width() + Math.abs(dx);
-        int height = height() + Math.abs(dy);
-        return new ImmutableWindow(x, y, width, height);
-    }
-
-    public Window resize(int width, int height) {
-        return new ImmutableWindow(x(), y(), width, height);
-    }
-
-    public Window move(int dx, int dy) {
-        return new ImmutableWindow(x() + dx, y() + dy, width(), height());
-    }
-}
-
-final class ImmutableWindow extends Window {
-    private final int x;
-    private final int y;
-    private final int width;
-    private final int height;
+abstract class ImmutableWindow {
+    protected int x;
+    protected int y;
+    protected int width;
+    protected int height;
 
     public ImmutableWindow(int x, int y, int width, int height) {
         this.x = x;
@@ -332,73 +246,101 @@ final class ImmutableWindow extends Window {
         this.height = height;
     }
 
-    @Override
     public int x() {
         return x;
     }
 
-    @Override
     public int y() {
         return y;
     }
 
-    @Override
     public int width() {
         return width;
     }
 
-    @Override
     public int height() {
         return height;
     }
+
+    public int left() {
+        return x();
+    }
+
+    public int right() {
+        return x() + width();
+    }
+
+    public int top() {
+        return y();
+    }
+
+    public int bottom() {
+        return y() + height();
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (!(object instanceof ImmutableWindow)) return false;
+        ImmutableWindow o = (ImmutableWindow) object;
+        return x() == o.x() && y() == o.y() && width() == o.width() && height() == o.height();
+    }
+
+    public boolean overlap(Window o) {
+        boolean onTop = bottom() <= o.top();
+        boolean onBottom = top() >= o.bottom();
+        boolean onLeft = right() <= o.left();
+        boolean onRight = left() >= o.right();
+        return !onTop && !onBottom && !onLeft && !onRight;
+    }
+
+    public boolean overlap(int x, int y) {
+        return left() <= x && x < right() && top() <= y && y < bottom();
+    }
 }
 
-final class MutableWindow extends Window {
-    public Transaction<Window> transaction;
+final class Window extends ImmutableWindow implements Snapshot<Window> {
+    public final Transaction<Window> transaction;
 
-    public MutableWindow(int x, int y, int width, int height) {
-        ImmutableWindow w = new ImmutableWindow(x, y, width, height);
-        transaction = new Transaction<>(w);
+    public Window(int x, int y, int width, int height) {
+        super(x, y, width, height);
+        this.transaction = new Transaction<>(this);
     }
 
     @Override
-    public int x() {
-        return transaction.read(false).x();
+    public Window snapshot() {
+        return new Window(x(), y(), width(), height());
     }
 
     @Override
-    public int y() {
-        return transaction.read(false).y();
+    public void restore(Window snapshot) {
+        x = snapshot.x();
+        y = snapshot.y();
+        width = snapshot.width();
+        height = snapshot.height();
     }
 
-    @Override
-    public int width() {
-        return transaction.read(false).width();
-    }
-
-    @Override
-    public int height() {
-        return transaction.read(false).height();
-    }
-
-    @Override
     public Window stretch(int dx, int dy) {
-        return transaction.update(super.stretch(dx, dy));
+        x = Math.min(x, x + dx);
+        y = Math.min(y, y + dy);
+        width += Math.abs(dx);
+        height += Math.abs(dy);
+        return this;
     }
 
-    @Override
     public Window move(int dx, int dy) {
-        return transaction.update(super.move(dx, dy));
+        x += dx;
+        y += dy;
+        return this;
     }
 
-    @Override
     public Window resize(int width, int height) {
-        return transaction.update(super.resize(width, height));
+        this.width = width;
+        this.height = height;
+        return this;
     }
 
-    @Override
-    public Window clone() {
-        return new MutableWindow(x(), y(), width(), height());
+    public Direction direction() {
+        return Direction.of(dx(), dy());
     }
 
     public int dx() {
