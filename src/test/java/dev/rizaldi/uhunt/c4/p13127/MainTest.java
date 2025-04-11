@@ -29,7 +29,7 @@ public class MainTest {
 
     @Test
     @Timeout(1)
-    public void c4rias() throws Exception {
+    public void findCombinationOfFactors4Rias() throws Exception {
         TestHelper.run(Main::main, directory, "c4rias");
     }
 }
