@@ -42,30 +42,30 @@ public class Main {
             if (command1.equals("move")) {
                 if (command2.equals("onto")) {
                     // reset stack above #1
-                    reset(blocks, position1[0], position1[1] + 1);
+                    resetStack(blocks, nextColumn(position1));
 
                     // reset stack above #2
-                    reset(blocks, position2[0], position2[1] + 1);
+                    resetStack(blocks, nextColumn(position2));
 
                     // put #1 above #2
-                    move(blocks, position1, position2);
+                    moveStack(blocks, position1, position2);
                 } else if (command2.equals("over")) {
                     // reset stack above #1
-                    reset(blocks, position1[0], position1[1] + 1);
+                    resetStack(blocks, nextColumn(position1));
 
                     // put #1 above #2 stack
-                    move(blocks, position1, position2);
+                    moveStack(blocks, position1, position2);
                 }
             } else if (command1.equals("pile")) {
                 if (command2.equals("onto")) {
                     // reset stack above #2
-                    reset(blocks, position2[0], position2[1] + 1);
+                    resetStack(blocks, nextColumn(position2));
 
                     // put #1 stack above #2
-                    move(blocks, position1, position2);
+                    moveStack(blocks, position1, position2);
                 } else if (command2.equals("over")) {
                     // put #1 stack above #2 stack
-                    move(blocks, position1, position2);
+                    moveStack(blocks, position1, position2);
                 }
             }
         }
@@ -84,7 +84,8 @@ public class Main {
         out.close();
     }
 
-    private static void move(
+    // move stack of cards from position #1 to #2
+    private static void moveStack(
             final int[][] array,
             final int[] position1,
             final int[] position2
@@ -104,12 +105,14 @@ public class Main {
         }
     }
 
-    private static void reset(final int[][] array, final int row, final int col) {
-        for (int currentCol = col; currentCol <= array[row].length; currentCol++) {
-            final int value = array[row][currentCol];
+    // move stack of cards to its original position
+    private static void resetStack(final int[][] array, final int[] position) {
+        final int row = position[0];
+        for (int col = position[1]; col <= array[row].length; col++) {
+            final int value = array[row][col];
             if (value == NO_VALUE) break;
 
-            array[row][currentCol] = NO_VALUE;
+            array[row][col] = NO_VALUE;
             array[value][0] = value;
         }
     }
@@ -123,5 +126,9 @@ public class Main {
             }
         }
         throw new NullPointerException("input violation, target not found.");
+    }
+
+    private static int[] nextColumn(int[] position) {
+        return new int[]{position[0], position[1] + 1};
     }
 }
