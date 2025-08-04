@@ -112,7 +112,8 @@ public class Main {
     }
 
     private static void readLines() throws IOException {
-        do lines = in.readLine().trim().split("\\s+"); while (lines.length == 0 || lines[0].isEmpty());
+        readLine();
+        lines = line.split("\\s+");
     }
 
     private static void readLine() throws IOException {
