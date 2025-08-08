@@ -6,7 +6,9 @@ import java.io.PrintWriter;
 import java.util.Scanner;
 
 /**
- *
+ * 10276 - Hanoi Tower Troubles Again!
+ * Time limit: 3.000 seconds
+ * https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=24&page=show_problem&problem=1217
  */
 public class Main {
     private static final int MAX_TOTAL_PEGS = 50;
@@ -61,7 +63,7 @@ public class Main {
 
     private static boolean[] buildIsSquareNumbers() {
         final boolean[] isSquareNumbers = new boolean[10000];
-        for (int i = 0; i*i < isSquareNumbers.length; i++) {
+        for (int i = 0; i * i < isSquareNumbers.length; i++) {
             isSquareNumbers[i * i] = true;
         }
         return isSquareNumbers;
