@@ -1,4 +1,4 @@
-package dev.rizaldi.uhunt.c2.p10128;
+package dev.rizaldi.uhunt.c3.p10128;
 
 import dev.rizaldi.uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
