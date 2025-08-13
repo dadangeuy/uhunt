@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.Arrays;
-import java.util.TreeMap;
 
 /**
  * 307 - Sticks
@@ -21,13 +20,13 @@ public class Main {
 
         while (true) {
             final Input input = new Input();
-            input.countStick = Integer.parseInt(in.readLine());
-            if (input.countStick == 0) break;
+            input.countPart = Integer.parseInt(in.readLine());
+            if (input.countPart == 0) break;
 
-            input.sticks = Arrays.stream(in.readLine().split(" ")).mapToInt(Integer::parseInt).toArray();
+            input.parts = Arrays.stream(in.readLine().split(" ")).mapToInt(Integer::parseInt).toArray();
 
             final Output output = process.process(input);
-            out.write(Integer.toString(output.averageOriginalStick));
+            out.write(Integer.toString(output.averageStick));
             out.write('\n');
         }
 
@@ -38,51 +37,57 @@ public class Main {
 }
 
 class Input {
-    public int countStick;
-    public int[] sticks;
+    public int countPart;
+    public int[] parts;
 }
 
 class Output {
-    public int averageOriginalStick;
+    public int averageStick;
 }
 
 class Process {
     public Output process(final Input input) {
         final Output output = new Output();
 
-        final int sumStick = Arrays.stream(input.sticks).sum();
-        final int maxStick = Arrays.stream(input.sticks).max().orElse(sumStick);
-        final TreeMap<Integer, Integer> countPerStick = buildCountPerValue(input.sticks);
+        Arrays.sort(input.parts);
+        final boolean[] usedParts = new boolean[input.countPart];
 
-        for (int countOriginalStick = sumStick / maxStick; countOriginalStick >= 1; countOriginalStick--) {
-            final boolean isDivisible = sumStick % countOriginalStick == 0;
+        final int sumPart = Arrays.stream(input.parts).sum();
+        final int maxPart = Arrays.stream(input.parts).max().orElse(sumPart);
+        final int minPart = Arrays.stream(input.parts).min().orElse(sumPart);
+
+        // backtrack average stick
+        for (int averageStick = maxPart; averageStick <= sumPart; averageStick++) {
+            // prune: skip non divisible average
+            final boolean isDivisible = sumPart % averageStick == 0;
             if (!isDivisible) {
                 continue;
             }
 
-            final int averageOriginalStick = sumStick / countOriginalStick;
-            if (averageOriginalStick < maxStick) {
-                continue;
-            }
-            if (countOriginalStick == 1) {
-                output.averageOriginalStick = sumStick;
+            // prune: it's always possible to combine all parts, no need to backtrack
+            if (averageStick == sumPart) {
+                output.averageStick = sumPart;
                 return output;
             }
 
-            final int equalCount = countPerStick.getOrDefault(averageOriginalStick, 0);
-            if (equalCount > 0) countPerStick.remove(averageOriginalStick);
+            // prune: if all parts have equal length, no need to backtrack
+            final boolean equalPart = minPart == maxPart;
+            if (equalPart) {
+                output.averageStick = minPart;
+                return output;
+            }
 
-            final boolean isValid = backtrack(
-                    countPerStick,
-                    averageOriginalStick,
+            // backtrack stick
+            final boolean isValid = backtrackWithArray(
+                    input.parts,
+                    usedParts,
                     0,
-                    averageOriginalStick
+                    averageStick,
+                    0,
+                    input.parts.length
             );
-
-            if (equalCount > 0) countPerStick.put(averageOriginalStick, equalCount);
-
             if (isValid) {
-                output.averageOriginalStick = averageOriginalStick;
+                output.averageStick = averageStick;
                 break;
             }
         }
@@ -90,45 +95,62 @@ class Process {
         return output;
     }
 
-    private TreeMap<Integer, Integer> buildCountPerValue(int[] array) {
-        final TreeMap<Integer, Integer> map = new TreeMap<>();
-        for (int value : array) increment(map, value);
-        return map;
-    }
-
-    private void increment(final TreeMap<Integer, Integer> map, int key) {
-        map.compute(key, (k, v) -> v == null ? 1 : v + 1);
-    }
-
-    private void decrement(final TreeMap<Integer, Integer> map, int key) {
-        map.computeIfPresent(key, (k, v) -> v - 1 == 0 ? null : v - 1);
-    }
-
-    private boolean backtrack(
-            final TreeMap<Integer, Integer> countPerStick,
-            final int averageOriginalStick,
-            final int originalStick,
-            final int maximumStick
+    private boolean backtrackWithArray(
+            final int[] parts,
+            final boolean[] usedParts,
+            final int countUsedParts,
+            final int averageStick,
+            final int currentStick,
+            final int previousPartId
     ) {
-        if (countPerStick.isEmpty()) return true;
+        // base case: all parts are being used, valid stick
+        if (countUsedParts == parts.length) return true;
 
-        for (
-                Integer i = countPerStick.floorKey(Math.min(maximumStick, averageOriginalStick - originalStick));
-                i != null;
-                i = countPerStick.lowerKey(i)
-        ) {
-            decrement(countPerStick, i);
-            final boolean isValid = backtrack(
-                    countPerStick,
-                    averageOriginalStick,
-                    (originalStick + i) % averageOriginalStick,
-                    (originalStick + i) % averageOriginalStick == 0 ? averageOriginalStick : i
+        // backtrack combination of parts
+        final int desiredPart = averageStick - currentStick;
+        for (int partId = previousPartId - 1; partId >= 0; partId--) {
+            // prune: skip used parts
+            if (usedParts[partId]) continue;
+
+            // prune: skip greater than desired parts
+            if (parts[partId] > desiredPart) continue;
+
+            // backtrack combination of smaller parts
+            usedParts[partId] = true;
+            final boolean isValid = backtrackWithArray(
+                    parts,
+                    usedParts,
+                    countUsedParts + 1,
+                    averageStick,
+                    parts[partId] == desiredPart ? 0 : currentStick + parts[partId],
+                    parts[partId] == desiredPart ? parts.length : partId
             );
-            increment(countPerStick, i);
+            usedParts[partId] = false;
 
+            // if valid, stop backtrack
             if (isValid) return true;
 
-            if (originalStick == 0) return false;
+            /**
+             * [Prune - Desired Part]
+             * Desired part could be build using a part that perfectly matches with the desired part or from combining
+             * multiple smaller parts. We should prioritize using desired part and leave the smaller parts for other
+             * sticks. If the desired part exists, and we're not able to build the sticks, then it's impossible to
+             * construct the sticks.
+             */
+            if (parts[partId] == desiredPart) return false;
+
+            /**
+             * [Prune - Zero Stick]
+             * If it's not possible to build the stick from zero with currently available parts, then it's impossible
+             * to construct the sticks.
+             */
+            if (currentStick == 0) return false;
+
+            /**
+             * [Prune - Similar Sticks]
+             * If it's not possible to build the stick using the current part, we should try it with a different parts.
+             */
+            while (partId - 1 >= 0 && parts[partId] == parts[partId - 1]) partId--;
         }
 
         return false;
