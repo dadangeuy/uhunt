@@ -23,7 +23,6 @@ public class Main {
 
         for (int gameId = 1; ; gameId++) {
             final Input input = new Input();
-            input.gameId = gameId;
             input.boardSize = Integer.parseInt(in.readLine());
             if (input.boardSize == 0) break;
             input.board = new char[input.boardSize][];
@@ -32,7 +31,7 @@ public class Main {
             }
 
             final Output output = process.process(input);
-            out.write(String.format("%d %c\n", output.gameId, output.winner));
+            out.write(String.format("%d %c\n", gameId, output.winner));
         }
 
         in.close();
@@ -44,11 +43,9 @@ public class Main {
 class Input {
     public int boardSize;
     public char[][] board;
-    public int gameId;
 }
 
 class Output {
-    public int gameId;
     public char winner;
 }
 
@@ -60,24 +57,25 @@ class Process {
 
     public Output process(final Input input) {
         final Output output = new Output();
-        output.gameId = input.gameId;
 
         for (int row = 0; row < input.boardSize; row++) {
             for (int col = 0; col < input.boardSize; col++) {
                 final char cell = input.board[row][col];
+
                 switch (cell) {
                     case L_WHITE: {
-                        final int[] stats = floodFill(input.board, row, col, 'X');
-                        final boolean win = stats[2] == 0 && stats[3] == input.boardSize - 1;
+                        final FloodFillStats stats = floodFill(input.board, row, col, 'X');
+                        final boolean win = stats.minCol == 0 && stats.maxCol == input.boardSize - 1;
                         if (win) {
                             output.winner = U_WHITE;
                             return output;
                         }
                         break;
                     }
+
                     case L_BLACK: {
-                        final int[] stats = floodFill(input.board, row, col, 'X');
-                        final boolean win = stats[0] == 0 && stats[1] == input.boardSize - 1;
+                        final FloodFillStats stats = floodFill(input.board, row, col, 'X');
+                        final boolean win = stats.minRow == 0 && stats.maxRow == input.boardSize - 1;
                         if (win) {
                             output.winner = U_BLACK;
                             return output;
@@ -91,13 +89,14 @@ class Process {
         return output;
     }
 
-    private int[] floodFill(char[][] board, int row, int col, char mark) {
+    private FloodFillStats floodFill(char[][] board, int row, int col, char mark) {
         final char target = board[row][col];
 
-        int minRow = row;
-        int maxRow = row;
-        int minCol = col;
-        int maxCol = col;
+        final FloodFillStats stats = new FloodFillStats();
+        stats.minRow = row;
+        stats.maxRow = row;
+        stats.minCol = col;
+        stats.maxCol = col;
 
         final LinkedList<int[]> pendingCells = new LinkedList<>();
 
@@ -106,28 +105,27 @@ class Process {
 
         while (!pendingCells.isEmpty()) {
             final int[] cell = pendingCells.removeFirst();
-            minRow = Math.min(minRow, cell[0]);
-            maxRow = Math.max(maxRow, cell[0]);
-            minCol = Math.min(minCol, cell[1]);
-            maxCol = Math.max(maxCol, cell[1]);
+            stats.minRow = Math.min(stats.minRow, cell[0]);
+            stats.maxRow = Math.max(stats.maxRow, cell[0]);
+            stats.minCol = Math.min(stats.minCol, cell[1]);
+            stats.maxCol = Math.max(stats.maxCol, cell[1]);
 
-            final List<int[]> neighborCells = getNeighborCells(cell[0], cell[1], board.length);
+            final List<int[]> neighborCells = getNeighborCells(cell[0], cell[1], board, target);
             for (final int[] neighborCell : neighborCells) {
-                if (board[neighborCell[0]][neighborCell[1]] != target) continue;
-
                 board[neighborCell[0]][neighborCell[1]] = mark;
                 pendingCells.addLast(neighborCell);
             }
         }
 
-        return new int[]{minRow, maxRow, minCol, maxCol};
+        return stats;
     }
 
-    private List<int[]> getNeighborCells(int row, int col, int size) {
+    private List<int[]> getNeighborCells(int row, int col, char[][] board, char target) {
         final List<int[]> neighborCells = getNeighborCells(row, col);
         return neighborCells.stream()
-                .filter(cell -> 0 <= cell[0] && cell[0] < size)
-                .filter(cell -> 0 <= cell[1] && cell[1] < size)
+                .filter(cell -> 0 <= cell[0] && cell[0] < board.length)
+                .filter(cell -> 0 <= cell[1] && cell[1] < board.length)
+                .filter(cell -> board[cell[0]][cell[1]] == target)
                 .collect(Collectors.toList());
     }
 
@@ -141,4 +139,11 @@ class Process {
                 new int[]{row + 1, col + 1}
         );
     }
+}
+
+class FloodFillStats {
+    public int minRow;
+    public int maxRow;
+    public int minCol;
+    public int maxCol;
 }
