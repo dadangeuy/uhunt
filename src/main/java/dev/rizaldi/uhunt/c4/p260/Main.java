@@ -54,6 +54,7 @@ class Process {
     private static final char L_WHITE = 'w';
     private static final char U_BLACK = 'B';
     private static final char L_BLACK = 'b';
+    private static final char VISITED_MARK = 'X';
 
     public Output process(final Input input) {
         final Output output = new Output();
@@ -64,7 +65,7 @@ class Process {
 
                 switch (cell) {
                     case L_WHITE: {
-                        final FloodFillStats stats = floodFill(input.board, row, col, 'X');
+                        final FloodFillStats stats = floodFill(input.board, row, col, VISITED_MARK);
                         final boolean win = stats.minCol == 0 && stats.maxCol == input.boardSize - 1;
                         if (win) {
                             output.winner = U_WHITE;
@@ -74,7 +75,7 @@ class Process {
                     }
 
                     case L_BLACK: {
-                        final FloodFillStats stats = floodFill(input.board, row, col, 'X');
+                        final FloodFillStats stats = floodFill(input.board, row, col, VISITED_MARK);
                         final boolean win = stats.minRow == 0 && stats.maxRow == input.boardSize - 1;
                         if (win) {
                             output.winner = U_BLACK;
