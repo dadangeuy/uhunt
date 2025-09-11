@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -57,58 +58,80 @@ public class Main {
 
 class Process {
     public Output process(final Input input) {
-        final Graph<String, String> graph = new Graph<>();
-        for (final String[] constraint : input.constraints) {
-            graph.add(constraint[1], constraint[0]);
-        }
-
-        final LinkedList<String> variableq = new LinkedList<>();
-        for (final String variable : input.variables) {
-            if (graph.getDependencies(variable).isEmpty()) {
-                variableq.addLast(variable);
-            }
-        }
-
-        final LinkedList<String> permutations = new LinkedList<>();
-        dfsWithTopologicalSort(input.variables, graph, variableq, new LinkedList<>(), permutations);
+        final Graph<String, String> dependencyGraph = createDependencyGraph(input.constraints);
+        final List<String> permutations = topologicalDfs(input.variables, dependencyGraph);
         permutations.sort(Comparator.naturalOrder());
 
-        return new Output(permutations.toArray(new String[0]));
+        final String[] arrayPermutations = permutations.toArray(new String[0]);
+        return new Output(arrayPermutations);
     }
 
-    private void dfsWithTopologicalSort(
+    private Graph<String, String> createDependencyGraph(final String[][] constraints) {
+        final Graph<String, String> dependencyGraph = new Graph<>();
+        for (final String[] constraint : constraints) {
+            dependencyGraph.add(constraint[1], constraint[0]);
+        }
+
+        return dependencyGraph;
+    }
+
+    private List<String> topologicalDfs(
             final String[] variables,
-            final Graph<String, String> graph,
-            final LinkedList<String> variableq,
+            final Graph<String, String> dependencyGraph
+    ) {
+        final LinkedList<String> availableVariables = new LinkedList<>(findAvailableVariables(variables, dependencyGraph));
+        final LinkedList<String> permutations = new LinkedList<>();
+        topologicalDfs(variables.length, dependencyGraph, availableVariables, new LinkedList<>(), permutations);
+        return permutations;
+    }
+
+    private List<String> findAvailableVariables(
+            final String[] variables,
+            final Graph<String, String> dependencyGraph
+    ) {
+        return Arrays.stream(variables)
+                .filter(variable -> dependencyGraph.getForwards(variable).isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private void topologicalDfs(
+            final int remainingVariables,
+            final Graph<String, String> dependencyGraph,
+            final LinkedList<String> availableVariables,
             final LinkedList<String> permutationBuilder,
             final LinkedList<String> permutations
     ) {
-        final boolean isCompleted = permutationBuilder.size() == variables.length;
-        if (isCompleted) {
+        if (remainingVariables == 0) {
             final String permutation = String.join("", permutationBuilder);
             permutations.add(permutation);
         }
 
-        for (int i = 0; i < variableq.size(); i++) {
+        for (int i = 0; i < availableVariables.size(); i++) {
             // take a variable
-            final String variable = variableq.removeFirst();
+            final String variable = availableVariables.removeFirst();
             permutationBuilder.addLast(variable);
 
             // find the next free variable from its dependents and update the graph
-            final List<String> dependents = new LinkedList<>(graph.getDependents(variable));
-            dependents.forEach(dependent -> graph.remove(dependent, variable));
+            final List<String> dependents = new LinkedList<>(dependencyGraph.getBackwards(variable));
+            dependents.forEach(dependent -> dependencyGraph.remove(dependent, variable));
             final List<String> freeDependents = dependents.stream()
-                    .filter(dependent -> graph.getDependencies(dependent).isEmpty())
+                    .filter(dependent -> dependencyGraph.getForwards(dependent).isEmpty())
                     .collect(Collectors.toList());
-            freeDependents.forEach(variableq::addLast);
+            freeDependents.forEach(availableVariables::addLast);
 
             // dfs to explore this permutation
-            dfsWithTopologicalSort(variables, graph, variableq, permutationBuilder, permutations);
+            topologicalDfs(
+                    remainingVariables - 1,
+                    dependencyGraph,
+                    availableVariables,
+                    permutationBuilder,
+                    permutations
+            );
 
             // rollback
-            freeDependents.forEach(dependent -> variableq.removeLast());
-            dependents.forEach(dependent -> graph.add(dependent, variable));
-            variableq.addLast(variable);
+            freeDependents.forEach(dependent -> availableVariables.removeLast());
+            dependents.forEach(dependent -> dependencyGraph.add(dependent, variable));
+            availableVariables.addLast(variable);
             permutationBuilder.removeLast();
         }
     }
@@ -133,24 +156,24 @@ class Output {
 }
 
 class Graph<A, B> {
-    public final Map<A, Set<B>> mapDependencies = new HashMap<>();
-    public final Map<B, Set<A>> mapDependents = new HashMap<>();
+    public final Map<A, Set<B>> forwards = new HashMap<>();
+    public final Map<B, Set<A>> backwards = new HashMap<>();
 
     public void add(A a, B b) {
-        mapDependencies.computeIfAbsent(a, k -> new HashSet<>()).add(b);
-        mapDependents.computeIfAbsent(b, k -> new HashSet<>()).add(a);
+        forwards.computeIfAbsent(a, k -> new HashSet<>()).add(b);
+        backwards.computeIfAbsent(b, k -> new HashSet<>()).add(a);
     }
 
     public void remove(A a, B b) {
-        mapDependencies.getOrDefault(a, Collections.emptySet()).remove(b);
-        mapDependents.getOrDefault(b, Collections.emptySet()).remove(a);
+        forwards.getOrDefault(a, Collections.emptySet()).remove(b);
+        backwards.getOrDefault(b, Collections.emptySet()).remove(a);
     }
 
-    public Set<B> getDependencies(A a) {
-        return mapDependencies.getOrDefault(a, Collections.emptySet());
+    public Set<B> getForwards(A a) {
+        return forwards.getOrDefault(a, Collections.emptySet());
     }
 
-    public Set<A> getDependents(B b) {
-        return mapDependents.getOrDefault(b, Collections.emptySet());
+    public Set<A> getBackwards(B b) {
+        return backwards.getOrDefault(b, Collections.emptySet());
     }
 }
