@@ -18,6 +18,7 @@ import java.util.Set;
  * 11686 - Pick up sticks
  * Time limit: 5.000 seconds
  * https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&page=show_problem&problem=2733
+ * Note: unit test fail due to output variance
  */
 public class Main {
     public static void main(final String... args) throws IOException {
