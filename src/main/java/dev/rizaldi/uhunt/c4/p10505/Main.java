@@ -111,7 +111,7 @@ class Process {
 
         while (!nextVertices.isEmpty()) {
             final int vertex = nextVertices.remove();
-            for (final int nextVertex : graph.getForwards(vertex)) {
+            for (final int nextVertex : graph.get(vertex)) {
                 if (!visitedVertices.contains(nextVertex)) {
                     nextVertices.add(nextVertex);
                     visitedVertices.add(nextVertex);
@@ -142,7 +142,7 @@ class Process {
         while (validFaction && (!faction1q.isEmpty() || !faction2q.isEmpty())) {
             while (validFaction && !faction1q.isEmpty()) {
                 final int person = faction1q.remove();
-                final Set<Integer> enemies = graph.getForwards(person);
+                final Set<Integer> enemies = graph.get(person);
                 for (final int enemy : enemies) {
                     if (faction1.contains(enemy)) {
                         validFaction = false;
@@ -157,7 +157,7 @@ class Process {
             }
             while (validFaction && !faction2q.isEmpty()) {
                 final int person = faction2q.remove();
-                final Set<Integer> enemies = graph.getForwards(person);
+                final Set<Integer> enemies = graph.get(person);
                 for (final int enemy : enemies) {
                     if (faction1.contains(enemy)) {
                         continue;
@@ -178,18 +178,12 @@ class Process {
 
 class Graph<FROM, TO> {
     private final Map<FROM, Set<TO>> forwards = new HashMap<>();
-    private final Map<TO, Set<FROM>> backwards = new HashMap<>();
 
     public void add(FROM from, TO to) {
         forwards.computeIfAbsent(from, k -> new HashSet<>()).add(to);
-        backwards.computeIfAbsent(to, k -> new HashSet<>()).add(from);
     }
 
-    public Set<TO> getForwards(final FROM from) {
+    public Set<TO> get(final FROM from) {
         return forwards.getOrDefault(from, Collections.emptySet());
-    }
-
-    public Set<FROM> getBackwards(final TO to) {
-        return backwards.getOrDefault(to, Collections.emptySet());
     }
 }
