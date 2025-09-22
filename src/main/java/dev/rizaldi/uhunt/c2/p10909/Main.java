@@ -5,7 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -73,69 +73,68 @@ class Output {
 }
 
 class Process {
-    private static final int[] LUCKY_NUMBERS = generateLuckyNumbers(2_000_000);
-    private static final boolean[] IS_LUCKY_NUMBERS = generateIsLuckyNumbers(LUCKY_NUMBERS, 2_000_000);
+    private static final Treap LUCKY_NUMBERS = generateLuckyNumbers(2_000_000);
 
     public Output process(final Input input) {
         final boolean isOdd = (input.number & 1) == 1;
         if (isOdd) return new Output(input.number, null);
 
-        final int lteIndex = binarySearchLTE(LUCKY_NUMBERS, input.number / 2);
-        for (int i = lteIndex; i >= 0; i--) {
-            final int factor1 = LUCKY_NUMBERS[i];
-            final int factor2 = input.number - factor1;
-
-            final boolean isValid = IS_LUCKY_NUMBERS[factor2];
-            if (isValid) return new Output(input.number, new int[]{factor1, factor2});
+        Optional<Integer> optionalFirstFactor = LUCKY_NUMBERS.floor(input.number / 2);
+        while (optionalFirstFactor.isPresent()) {
+            final int firstFactor = optionalFirstFactor.get();
+            final int secondFactor = input.number - firstFactor;
+            final boolean isLucky = LUCKY_NUMBERS.contains(secondFactor);
+            if (isLucky) {
+                return new Output(input.number, new int[]{firstFactor, secondFactor});
+            }
+            optionalFirstFactor = LUCKY_NUMBERS.floor(firstFactor - 1);
         }
 
         return new Output(input.number, null);
     }
 
-    private int binarySearchLTE(final int[] array, final int number) {
-        int left = 0, right = array.length - 1;
-        while (left < right) {
-            final int middle = (left + right + 1) / 2;
-            if (array[middle] > number) {
-                right = middle - 1;
-            } else if (array[middle] <= number) {
-                left = middle;
-            }
-        }
-        return left;
-    }
+    private static Treap generateLuckyNumbers(final int max) {
+        final Treap treap = new Treap();
 
-    private static boolean[] generateIsLuckyNumbers(final int[] luckyNumbers, final int max) {
-        final boolean[] isLuckyNumbers = new boolean[max + 1];
-        for (int luckyNumber : luckyNumbers) isLuckyNumbers[luckyNumber] = true;
-        return isLuckyNumbers;
-    }
-
-    private static int[] generateLuckyNumbers(final int max) {
-        final OrderStatisticTreap treap = new OrderStatisticTreap();
-
-        // odd values
+        // add odd values
         for (int i = 1; i <= max; i += 2) treap.insert(i);
 
-        // i-th values elimination
+        // delete interval values
         for (int i = 1; i < treap.size(); i++) {
-            final int interval = treap.select(i);
+            final int interval = treap.findKey(i).orElseThrow(NullPointerException::new);
             final int lastIndex = ((treap.size() / interval) * interval) - 1;
             if (lastIndex < 0) break;
 
             for (int j = lastIndex; j >= 0; j -= interval) {
-                final int key = treap.select(j);
-                treap.remove(key);
+                final int key = treap.findKey(j).orElseThrow(NullPointerException::new);
+                treap.delete(key);
             }
         }
 
-        return treap.values();
+        return treap;
     }
 }
 
-class OrderStatisticTreap {
+interface Tree {
+    void insert(final int key);
+
+    void delete(final int key);
+
+    boolean contains(final int key);
+
+    Optional<Integer> floor(final int key);
+}
+
+interface OrderStatisticTree {
+    Optional<Integer> findKey(final int index);
+
+    Optional<Integer> findIndex(final int key);
+}
+
+class Treap implements Tree, OrderStatisticTree {
     private Node root = null;
 
+    @Override
     public void insert(final int key) {
         root = insert(root, key);
     }
@@ -161,6 +160,87 @@ class OrderStatisticTreap {
         return node;
     }
 
+    @Override
+    public void delete(final int key) {
+        root = delete(root, key);
+    }
+
+    private Node delete(Node node, final int key) {
+        if (node == null) {
+            return null;
+        }
+
+        if (key < node.key) {
+            node.left = delete(node.left, key);
+        } else if (node.key < key) {
+            node.right = delete(node.right, key);
+        } else {
+            if (node.left == null) {
+                return node.right;
+            } else if (node.right == null) {
+                return node.left;
+            } else {
+                if (node.left.priority > node.right.priority) {
+                    node = rotateRight(node);
+                    node.right = delete(node.right, key);
+                } else {
+                    node = rotateLeft(node);
+                    node.left = delete(node.left, key);
+                }
+            }
+        }
+        node.updateSize();
+
+        return node;
+    }
+
+    @Override
+    public boolean contains(final int key) {
+        return contains(root, key);
+    }
+
+    private boolean contains(final Node node, final int key) {
+        if (node == null) {
+            return false;
+        } else if (node.key == key) {
+            return true;
+        } else if (key <= node.key) {
+            return contains(node.left, key);
+        } else {
+            return contains(node.right, key);
+        }
+    }
+
+    @Override
+    public Optional<Integer> floor(final int key) {
+        return floor(root, key);
+    }
+
+    private Optional<Integer> floor(final Node node, final int key) {
+        if (node == null) {
+            return Optional.empty();
+        } else if (key < node.key) {
+            return floor(node.left, key);
+        } else if (node.key < key) {
+            final Optional<Integer> right = floor(node.right, key);
+            return right
+                    .map(rightKey -> Optional.of(Math.max(rightKey, node.key)))
+                    .orElseGet(() -> Optional.of(node.key));
+        } else {
+            return Optional.of(node.key);
+        }
+    }
+
+    @Override
+    public Optional<Integer> findKey(final int index) {
+        return findKey(root, root.leftSize(), index);
+    }
+
+    @Override
+    public Optional<Integer> findIndex(final int key) {
+        return findIndex(root, root.leftSize(), key);
+    }
+
     private Node rotateLeft(final Node node) {
         final Node right = node.right;
         node.right = right.left;
@@ -177,63 +257,27 @@ class OrderStatisticTreap {
         return left;
     }
 
-    public void remove(final int key) {
-        root = remove(root, key);
-    }
-
-    private Node remove(Node node, final int key) {
+    public Optional<Integer> findKey(final Node node, final int nodeIndex, final int index) {
         if (node == null) {
-            return null;
-        }
-
-        if (key < node.key) {
-            node.left = remove(node.left, key);
-        } else if (node.key < key) {
-            node.right = remove(node.right, key);
+            return Optional.empty();
+        } else if (index < nodeIndex) {
+            return findKey(node.left, nodeIndex - node.left.rightSize() - 1, index);
+        } else if (nodeIndex < index) {
+            return findKey(node.right, nodeIndex + node.right.leftSize() + 1, index);
         } else {
-            if (node.left == null) {
-                return node.right;
-            } else if (node.right == null) {
-                return node.left;
-            } else {
-                if (node.left.priority > node.right.priority) {
-                    node = rotateRight(node);
-                    node.right = remove(node.right, key);
-                } else {
-                    node = rotateLeft(node);
-                    node.left = remove(node.left, key);
-                }
-            }
+            return Optional.of(node.key);
         }
-        node.updateSize();
-
-        return node;
     }
 
-    public int select(final int index) {
-        return select(root, root.leftSize(), index);
-    }
-
-    public int select(Node node, final int nodeIndex, final int targetIndex) {
-        if (targetIndex < nodeIndex) {
-            return select(node.left, nodeIndex - node.left.rightSize() - 1, targetIndex);
-        } else if (nodeIndex < targetIndex) {
-            return select(node.right, nodeIndex + node.right.leftSize() + 1, targetIndex);
-        }
-        return node.key;
-    }
-
-    public int[] values() {
-        final LinkedList<Integer> result = new LinkedList<>();
-        values(root, result);
-        return result.stream().mapToInt(Integer::intValue).toArray();
-    }
-
-    private void values(Node node, final LinkedList<Integer> result) {
-        if (node != null) {
-            values(node.left, result);
-            result.add(node.key);
-            values(node.right, result);
+    private Optional<Integer> findIndex(final Node node, final int nodeIndex, final int key) {
+        if (node == null) {
+            return Optional.empty();
+        } else if (key < node.key) {
+            return findIndex(node.left, nodeIndex - node.left.rightSize() - 1, key);
+        } else if (node.key < key) {
+            return findIndex(node.right, nodeIndex + node.right.leftSize() + 1, key);
+        } else {
+            return Optional.of(nodeIndex);
         }
     }
 
