@@ -29,7 +29,7 @@ public class TestHelper {
             main.run();
 
             final boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
-            Assertions.assertTrue(match);
+            Assertions.assertTrue(match, "Verdict  :Wrong Answer");
         }
     }
 
