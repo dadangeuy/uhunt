@@ -1,12 +1,10 @@
 package uhunt.c4.p11138;
 
-import uhunt.helper.TestHelper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import uhunt.helper.TestHelper;
 
 public class MainTest {
-
-
     @Test
     @Timeout(3)
     public void sample() throws Exception {

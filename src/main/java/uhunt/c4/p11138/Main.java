@@ -5,12 +5,14 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 
@@ -43,9 +45,9 @@ public class Main {
             final Output output = process.process(input);
 
             out.write(String.format(
-                    "Case %d: a maximum of %d nuts and bolts can be fitted together\n",
-                    caseId,
-                    output.maxTotalFits
+                "Case %d: a maximum of %d nuts and bolts can be fitted together\n",
+                caseId,
+                output.maxTotalFits
             ));
         }
 
@@ -103,137 +105,170 @@ class Process {
     private static final String SINK = "SINK";
 
     public Output process(final Input input) {
-        final Graph<String> graph = new Graph<>();
+        final FlowNetwork<String> flowNetwork = createFlowNetwork(input);
+        final int maxTotalFits = flowNetwork.getMaximumFlow();
+        return new Output(input.caseId, maxTotalFits);
+    }
+
+    private FlowNetwork<String> createFlowNetwork(final Input input) {
+        final FlowNetwork<String> flowNetwork = new FlowNetwork<>(SOURCE, SINK);
+
+        for (int bolt = 0; bolt < input.totalBolts; bolt++) {
+            final String boltName = String.format("BOLT_%d", bolt);
+            flowNetwork.increment(SOURCE, boltName, 1);
+        }
+
+        for (int nut = 0; nut < input.totalNuts; nut++) {
+            final String nutName = String.format("NUT_%d", nut);
+            flowNetwork.increment(nutName, SINK, 1);
+        }
+
         for (int bolt = 0; bolt < input.totalBolts; bolt++) {
             final String boltName = String.format("BOLT_%d", bolt);
             for (int nut = 0; nut < input.totalNuts; nut++) {
                 final String nutName = String.format("NUT_%d", nut);
 
-                if (input.fits[bolt][nut] == 0) continue;
-                graph.increment(boltName, nutName, 1);
+                if (input.fits[bolt][nut] == 1) {
+                    flowNetwork.increment(boltName, nutName, 1);
+                }
             }
         }
-        for (int bolt = 0; bolt < input.totalBolts; bolt++) {
-            final String boltName = String.format("BOLT_%d", bolt);
-            graph.increment(SOURCE, boltName, 1);
-        }
-        for (int nut = 0; nut < input.totalNuts; nut++) {
-            final String nutName = String.format("NUT_%d", nut);
-            graph.increment(nutName, SINK, 1);
-        }
 
-        while (true) {
-            final List<String> path = findPath(graph, SOURCE, SINK);
-            if (path == null) break;
-            final int bottleneck = findBottleneck(graph, path);
-            updateFlow(graph, path, bottleneck);
-        }
+        return flowNetwork;
+    }
+}
 
-        final int maxTotalFits = getFlow(graph, SINK);
-        return new Output(input.caseId, maxTotalFits);
+/**
+ * Algorithm to compute maximal flow in a flow network, based on Edmonds-Karp algorithm.<br>
+ * Time Complexity: O(V*E^2).<br>
+ * Template: {@link uhunt.template.FlowNetwork} (Revision 1).<br>
+ * Reference: <a href="https://cp-algorithms.com/graph/edmonds_karp.html">Algorithms for Competitive Programming</a>.<br>
+ */
+class FlowNetwork<V> {
+    private final V source;
+    private final V sink;
+    private final Map<V, Map<V, Integer>> pipes;
+
+    public FlowNetwork(
+        final V source,
+        final V sink
+    ) {
+        this.source = source;
+        this.sink = sink;
+        this.pipes = new HashMap<>();
     }
 
-    private List<String> findPath(
-            final Graph<String> graph,
-            final String originVertex,
-            final String destinationVertex
-    ) {
-        final Set<String> visitedVertices = new HashSet<>();
-        final Queue<String> queueVertices = new LinkedList<>();
-        final Map<String, String> previousVertexPerVertex = new HashMap<>();
+    // O(1)
+    public void increment(final V fromVertex, final V intoVertex, final int capacity) {
+        pipes
+            .computeIfAbsent(fromVertex, k -> new HashMap<>())
+            .compute(intoVertex, (k, v) -> v == null ? capacity : capacity + v);
+    }
 
-        queueVertices.add(originVertex);
-        visitedVertices.add(originVertex);
-        previousVertexPerVertex.put(originVertex, null);
+    // O(1)
+    public Set<V> get(final V fromVertex) {
+        return pipes.getOrDefault(fromVertex, Collections.emptyMap()).keySet();
+    }
 
-        while (!queueVertices.isEmpty()) {
-            final String currentVertex = queueVertices.remove();
-            if (currentVertex.equals(destinationVertex)) {
-                return buildPath(previousVertexPerVertex, destinationVertex);
+    // O(1)
+    public Optional<Integer> get(final V fromVertex, final V intoVertex) {
+        return Optional.ofNullable(pipes.getOrDefault(fromVertex, Collections.emptyMap()).get(intoVertex));
+    }
+
+    // O(V*E^2)
+    public int getMaximumFlow() {
+        doMaximumFlow();
+        final int maximumFlow = get(sink).stream()
+            .mapToInt(vertex -> get(sink, vertex).orElse(0))
+            .sum();
+        return maximumFlow;
+    }
+
+    // O(V*E^2)
+    public void doMaximumFlow() {
+        doMaximumFlowWithEdmondsKarp();
+    }
+
+    // O(V*E^2)
+    private void doMaximumFlowWithEdmondsKarp() {
+        Collection<V> path;
+        while ((path = getShortestPath()) != null) {
+            final int bottleneck = getBottleneck(path);
+            doAugmentFlow(path, bottleneck);
+        }
+    }
+
+    // O(V+E)
+    private Collection<V> getShortestPath() {
+        return getShortestPathWithBreadthFirstSearch();
+    }
+
+    // O(V+E)
+    private Collection<V> getShortestPathWithBreadthFirstSearch() {
+        final Set<V> visitedVertices = new HashSet<>();
+        final Queue<V> pendingVertices = new LinkedList<>();
+        final Map<V, V> previousVertices = new HashMap<>();
+
+        visitedVertices.add(source);
+        pendingVertices.add(source);
+        previousVertices.put(source, null);
+
+        while (!pendingVertices.isEmpty()) {
+            final V vertex = pendingVertices.remove();
+            if (vertex == sink) {
+                return getPath(previousVertices);
             }
 
-            for (final String nextVertex : graph.getVertices(currentVertex)) {
-                if (visitedVertices.contains(nextVertex)) continue;
-                if (graph.getWeight(currentVertex, nextVertex) <= 0) continue;
+            for (final V nextVertex : get(vertex)) {
+                final boolean isVisited = visitedVertices.contains(nextVertex);
+                if (isVisited) continue;
 
-                queueVertices.add(nextVertex);
+                final boolean hasPositiveFlow = get(vertex, nextVertex).orElse(0) > 0;
+                if (!hasPositiveFlow) continue;
+
                 visitedVertices.add(nextVertex);
-                previousVertexPerVertex.put(nextVertex, currentVertex);
+                pendingVertices.add(nextVertex);
+                previousVertices.put(nextVertex, vertex);
             }
         }
 
         return null;
     }
 
-    private List<String> buildPath(
-            final Map<String, String> previousVertexPerVertex,
-            final String destinationVertex
-    ) {
-        final LinkedList<String> path = new LinkedList<>();
-        for (
-                String currentVertex = destinationVertex;
-                currentVertex != null;
-                currentVertex = previousVertexPerVertex.get(currentVertex)
-        ) {
+    // O(V)
+    private Collection<V> getPath(final Map<V, V> previousVertices) {
+        final LinkedList<V> path = new LinkedList<>();
+        for (V currentVertex = sink; currentVertex != null; currentVertex = previousVertices.get(currentVertex)) {
             path.addFirst(currentVertex);
         }
         return path;
     }
 
-    private int findBottleneck(
-            final Graph<String> graph,
-            final List<String> path
-    ) {
+    // O(V)
+    private int getBottleneck(final Collection<V> path) {
         int bottleneck = Integer.MAX_VALUE;
-        for (int i = 0; i < path.size() - 1; i++) {
-            final String from = path.get(i);
-            final String into = path.get(i + 1);
-            final int capacity = graph.getWeight(from, into);
+
+        final Iterator<V> it = path.iterator();
+        V from, into = it.next();
+        while (it.hasNext()) {
+            from = into;
+            into = it.next();
+            final int capacity = get(from, into).orElse(0);
             bottleneck = Math.min(bottleneck, capacity);
         }
+
         return bottleneck;
     }
 
-    private void updateFlow(
-            final Graph<String> graph,
-            final List<String> path,
-            final int flow
-    ) {
-        for (int i = 0; i < path.size() - 1; i++) {
-            final String from = path.get(i);
-            final String into = path.get(i + 1);
-
-            graph.increment(from, into, -flow);
-            graph.increment(into, from, flow);
+    // O(V)
+    private void doAugmentFlow(final Collection<V> path, final int flow) {
+        final Iterator<V> it = path.iterator();
+        V from, into = it.next();
+        while (it.hasNext()) {
+            from = into;
+            into = it.next();
+            increment(from, into, -flow);
+            increment(into, from, +flow);
         }
-    }
-
-    private int getFlow(final Graph<String> graph, final String vertex) {
-        int flow = 0;
-        for (final String next : graph.getVertices(vertex)) {
-            final int residual = graph.getWeight(vertex, next);
-            flow += residual;
-        }
-        return flow;
-    }
-}
-
-class Graph<V> {
-    private final Map<V, Map<V, Integer>> edges = new HashMap<>();
-
-    public void increment(final V from, final V into, final int weight) {
-        edges
-                .computeIfAbsent(from, k -> new HashMap<>())
-                .compute(into, (k, v) -> v == null ? weight : v + weight);
-    }
-
-    public Set<V> getVertices(final V from) {
-        return edges.getOrDefault(from, Collections.emptyMap()).keySet();
-    }
-
-    public int getWeight(final V from, final V into) {
-        return edges
-                .getOrDefault(from, Collections.emptyMap())
-                .getOrDefault(into, 0);
     }
 }

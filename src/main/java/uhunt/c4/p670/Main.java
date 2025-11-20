@@ -169,6 +169,12 @@ class Coordinate {
     }
 }
 
+/**
+ * Algorithm to compute maximal flow in a flow network, based on Edmonds-Karp algorithm.<br>
+ * Time Complexity: O(V*E^2).<br>
+ * Template: {@link uhunt.template.FlowNetwork} (Revision 1).<br>
+ * Reference: <a href="https://cp-algorithms.com/graph/edmonds_karp.html">Algorithms for Competitive Programming</a>.<br>
+ */
 class FlowNetwork<V> {
     private final V source;
     private final V sink;
@@ -183,24 +189,38 @@ class FlowNetwork<V> {
         this.pipes = new HashMap<>();
     }
 
+    // O(1)
     public void increment(final V fromVertex, final V intoVertex, final int capacity) {
         pipes
             .computeIfAbsent(fromVertex, k -> new HashMap<>())
             .compute(intoVertex, (k, v) -> v == null ? capacity : capacity + v);
     }
 
+    // O(1)
     public Set<V> get(final V fromVertex) {
         return pipes.getOrDefault(fromVertex, Collections.emptyMap()).keySet();
     }
 
+    // O(1)
     public Optional<Integer> get(final V fromVertex, final V intoVertex) {
         return Optional.ofNullable(pipes.getOrDefault(fromVertex, Collections.emptyMap()).get(intoVertex));
     }
 
+    // O(V*E^2)
+    public int getMaximumFlow() {
+        doMaximumFlow();
+        final int maximumFlow = get(sink).stream()
+            .mapToInt(vertex -> get(sink, vertex).orElse(0))
+            .sum();
+        return maximumFlow;
+    }
+
+    // O(V*E^2)
     public void doMaximumFlow() {
         doMaximumFlowWithEdmondsKarp();
     }
 
+    // O(V*E^2)
     private void doMaximumFlowWithEdmondsKarp() {
         Collection<V> path;
         while ((path = getShortestPath()) != null) {
@@ -209,10 +229,12 @@ class FlowNetwork<V> {
         }
     }
 
+    // O(V+E)
     private Collection<V> getShortestPath() {
         return getShortestPathWithBreadthFirstSearch();
     }
 
+    // O(V+E)
     private Collection<V> getShortestPathWithBreadthFirstSearch() {
         final Set<V> visitedVertices = new HashSet<>();
         final Queue<V> pendingVertices = new LinkedList<>();
@@ -244,6 +266,7 @@ class FlowNetwork<V> {
         return null;
     }
 
+    // O(V)
     private Collection<V> getPath(final Map<V, V> previousVertices) {
         final LinkedList<V> path = new LinkedList<>();
         for (V currentVertex = sink; currentVertex != null; currentVertex = previousVertices.get(currentVertex)) {
@@ -252,6 +275,7 @@ class FlowNetwork<V> {
         return path;
     }
 
+    // O(V)
     private int getBottleneck(final Collection<V> path) {
         int bottleneck = Integer.MAX_VALUE;
 
@@ -267,6 +291,7 @@ class FlowNetwork<V> {
         return bottleneck;
     }
 
+    // O(V)
     private void doAugmentFlow(final Collection<V> path, final int flow) {
         final Iterator<V> it = path.iterator();
         V from, into = it.next();
