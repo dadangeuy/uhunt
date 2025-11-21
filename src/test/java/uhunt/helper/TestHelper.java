@@ -29,10 +29,10 @@ public class TestHelper {
             System.setIn(inputStream);
             System.setOut(resultStream);
 
-            assertTimeoutPreemptively(timeout, () -> main.run(), "Verdict: Time Limit Exceeded.");
+            assertTimeoutPreemptively(timeout, () -> main.run(), "Verdict: Time Limit Exceeded");
 
             final boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
-            Assertions.assertTrue(match, "Verdict: Wrong Answer.");
+            Assertions.assertTrue(match, "Verdict: Wrong Answer");
         }
     }
 
