@@ -10,10 +10,13 @@ import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Objects;
 
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+
 public class TestHelper {
-    public static void run(final ThrowingRunnable main, final String... caseIds) throws Exception {
+    public static void run(final Duration timeout, final ThrowingRunnable main, final String... caseIds) throws Exception {
         final File directory = getDirectory(main.getClass());
         for (final String file : caseIds) {
             final File input = new File(directory, file + ".i");
@@ -26,11 +29,15 @@ public class TestHelper {
             System.setIn(inputStream);
             System.setOut(resultStream);
 
-            main.run();
+            assertTimeoutPreemptively(timeout, () -> main.run(), "Verdict: Time Limit Exceeded.");
 
             final boolean match = FileUtils.contentEqualsIgnoreEOL(output, result, null);
-            Assertions.assertTrue(match, "Verdict  :Wrong Answer");
+            Assertions.assertTrue(match, "Verdict: Wrong Answer.");
         }
+    }
+
+    public static void run(final ThrowingRunnable main, final String... caseIds) throws Exception {
+        run(Duration.ofMinutes(1), main, caseIds);
     }
 
     public static File getDirectory(final Class<?> klass) throws URISyntaxException {
@@ -40,5 +47,5 @@ public class TestHelper {
         final URL testURL = Objects.requireNonNull(klass.getResource(testcasePath));
         final URI testURI = testURL.toURI();
         return new File(testURI);
-}
+    }
 }
