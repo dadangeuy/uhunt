@@ -4,20 +4,9 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.Queue;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * 11792 - Krochanska is Here!
@@ -68,98 +57,98 @@ class Process {
     public Output process(final Input input) {
         final Output output = new Output();
 
-        final Set<Integer> importantStations = findImportantStations(input.lines, input.totalStations);
-        final Graph<Integer, Integer> railwayGraph = createRailwayGraph(input.lines, importantStations);
-        output.location = getOptimalStation(railwayGraph, importantStations);
+        final Graph railwayGraph = getRailwayGraph(input.lines, input.totalStations);
+        final boolean[] isTransit = getIsTransit(input.lines, input.totalStations);
+        output.location = getTransitStationWithMinimumTransitDistance(railwayGraph, isTransit, input.totalStations);
 
         return output;
     }
 
-    private Set<Integer> findImportantStations(final int[][] lines, final int totalStations) {
-        final int[] counts = counts(lines, totalStations);
-        return IntStream.rangeClosed(1, totalStations)
-            .filter(station -> counts[station] > 1)
-            .boxed()
-            .collect(Collectors.toSet());
+    private Graph getRailwayGraph(final int[][] lines, final int totalStations) {
+        final Graph.Builder builder = new Graph.Builder(totalStations + 1);
+        for (final int[] line : lines) {
+            for (int i = 0, j = 1; j < line.length; i++, j++) {
+                final int prevStation = line[i];
+                final int nextStation = line[j];
+                builder.addBi(prevStation, nextStation);
+            }
+        }
+        return builder.build();
     }
 
-    private int[] counts(final int[][] lines, final int totalStations) {
+    private boolean[] getIsTransit(final int[][] lines, final int totalStations) {
+        final int[] totalTransits = getTotalTransits(lines, totalStations);
+        final boolean[] isTransit = new boolean[totalStations + 1];
+        for (int station = 1; station <= totalStations; station++) {
+            isTransit[station] = totalTransits[station] > 1;
+        }
+        return isTransit;
+    }
+
+    private int[] getTotalTransits(final int[][] lines, final int totalStations) {
         final int[] counts = new int[totalStations + 1];
         for (final int[] line : lines) {
-            Arrays.stream(line)
-                .distinct()
-                .forEach(station -> counts[station]++);
+            for (final int station : line) {
+                counts[station]++;
+            }
         }
         return counts;
     }
 
-    // Sliding Window
-    private Graph<Integer, Integer> createRailwayGraph(final int[][] lines, final Set<Integer> importantStations) {
-        final Graph<Integer, Integer> railwayGraph = new Graph<>();
-
-        for (final int[] line : lines) {
-            final int[] importantIndexes = IntStream.range(0, line.length)
-                .filter(index -> importantStations.contains(line[index]))
-                .toArray();
-
-            for (int i = 0, j = 1; j < importantIndexes.length; i++, j++) {
-                final int prevIndex = importantIndexes[i];
-                final int nextIndex = importantIndexes[j];
-
-                final int prevStation = line[prevIndex];
-                final int nextStation = line[nextIndex];
-
-                final int oldDistance = railwayGraph.get(prevStation, nextStation).orElse(Integer.MAX_VALUE);
-                final int newDistance = 2 * (nextIndex - prevIndex);
-                final int minDistance = Math.min(oldDistance, newDistance);
-                railwayGraph.addBi(prevStation, nextStation, minDistance);
-            }
-        }
-
-        return railwayGraph;
-    }
-
-    private int getOptimalStation(final Graph<Integer, Integer> railwayGraph, final Set<Integer> importantStations) {
+    // Find transit station with minimum total distances to other transit stations
+    private int getTransitStationWithMinimumTransitDistance(
+        final Graph railwayGraph,
+        final boolean[] isTransit,
+        final int totalStations
+    ) {
         int minStation = -1;
         int minTotalDistances = Integer.MAX_VALUE;
 
-        for (final int station : importantStations) {
-            final int totalDistances = getTotalDistances(railwayGraph, station);
-            final boolean better1 = totalDistances < minTotalDistances;
-            final boolean better2 = totalDistances == minTotalDistances && station < minStation;
+        for (int station = 1; station <= totalStations; station++) {
+            if (isTransit[station]) {
+                final int totalDistances = getTotalDistances(railwayGraph, station, isTransit, totalStations);
+                final boolean better1 = totalDistances < minTotalDistances;
+                final boolean better2 = totalDistances == minTotalDistances && station < minStation;
 
-            if (better1 || better2) {
-                minStation = station;
-                minTotalDistances = totalDistances;
+                if (better1 || better2) {
+                    minStation = station;
+                    minTotalDistances = totalDistances;
+                }
             }
         }
 
         return minStation;
     }
 
-    // Dijkstra
-    private int getTotalDistances(final Graph<Integer, Integer> railwayGraph, final int originStation) {
+    // Get total distance using breadth-first Search
+    private int getTotalDistances(
+        final Graph railwayGraph,
+        final int origin,
+        final boolean[] isTransit,
+        final int totalStations
+    ) {
         int totalDistances = 0;
-        final Set<Integer> visited = new HashSet<>();
-        final PriorityQueue<Progress> queue = new PriorityQueue<>(Progress.ORDER_BY_DISTANCE);
 
-        final Progress initialProgress = new Progress(originStation, 0);
-        queue.add(initialProgress);
+        final boolean[] isVisited = new boolean[totalStations + 1];
+        final Queue<Integer> stationq = new LinkedList<>();
+        final Queue<Integer> distanceq = new LinkedList<>();
 
-        while (!queue.isEmpty()) {
-            final Progress progress = queue.remove();
+        isVisited[origin] = true;
+        stationq.add(origin);
+        distanceq.add(0);
 
-            if (visited.contains(progress.station)) continue;
+        while (!stationq.isEmpty()) {
+            final int station = stationq.remove();
+            final int distance = distanceq.remove();
 
-            visited.add(progress.station);
-            totalDistances += progress.distance;
+            for (final int nextStation : railwayGraph.get(station)) {
+                if (!isVisited[nextStation]) {
+                    isVisited[nextStation] = true;
+                    totalDistances += isTransit[nextStation] ? distance : 0;
 
-            for (final int nextStation : railwayGraph.get(progress.station)) {
-                if (visited.contains(nextStation)) continue;
-
-                final int nextDistance = railwayGraph.get(progress.station, nextStation).get();
-                final Progress nextProgress = new Progress(nextStation, progress.distance + nextDistance);
-                queue.add(nextProgress);
+                    stationq.add(nextStation);
+                    distanceq.add(distance + 1);
+                }
             }
         }
 
@@ -167,40 +156,44 @@ class Process {
     }
 }
 
-class Graph<V, E> {
-    private final Map<V, Map<V, E>> edges = new HashMap<>();
+class Graph {
+    private final int[][] edges;
 
-    public void addBi(final V first, final V second, final E edge) {
-        addUni(first, second, edge);
-        addUni(second, first, edge);
+    public Graph(Builder builder) {
+        edges = new int[builder.edges.length][];
+        for (int i = 0; i < builder.edges.length; i++) {
+            if (builder.edges[i] == null) {
+                edges[i] = new int[0];
+            } else {
+                edges[i] = builder.edges[i].stream().mapToInt(v -> v).toArray();
+            }
+        }
     }
 
-    public void addUni(final V from, final V into, final E edge) {
-        edges.computeIfAbsent(from, k -> new HashMap<>()).put(into, edge);
+    public int[] get(final int from) {
+        return edges[from];
     }
 
-    public Set<V> get() {
-        return edges.keySet();
-    }
+    static class Builder {
+        private final LinkedList<Integer>[] edges;
 
-    public Set<V> get(final V from) {
-        return edges.getOrDefault(from, Collections.emptyMap()).keySet();
-    }
+        public Builder(final int totalVertices) {
+            this.edges = new LinkedList[totalVertices];
+        }
 
-    public Optional<E> get(final V from, final V into) {
-        return Optional.ofNullable(edges.getOrDefault(from, Collections.emptyMap()).get(into));
-    }
-}
+        public void addBi(final int first, final int second) {
+            addUni(first, second);
+            addUni(second, first);
+        }
 
-class Progress {
-    public static final Comparator<Progress> ORDER_BY_DISTANCE = Comparator.comparingInt(p -> p.distance);
+        public void addUni(final int from, final int into) {
+            if (edges[from] == null) edges[from] = new LinkedList<>();
+            edges[from].add(into);
+        }
 
-    public final int station;
-    public final int distance;
-
-    public Progress(final int station, final int distance) {
-        this.station = station;
-        this.distance = distance;
+        public Graph build() {
+            return new Graph(this);
+        }
     }
 }
 
