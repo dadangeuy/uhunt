@@ -84,7 +84,7 @@ class Process {
             }
         }
 
-        // combine non-conflict trusted informant (inspired by knapsack algorithm)
+        // combine non-conflict trusted informant
         // O(totalInformants * totalBitmasks) = O(20 * 2^20) = O(20 * 1048576) = O(20971520) = O(10^7)
         final List<Bitmask> validBitmasks = new LinkedList<>();
         validBitmasks.add(new Bitmask());
