@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group 'rizaldi'
+group 'org.rizaldi'
 version '1.0'
 
 repositories {
