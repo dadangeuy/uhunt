@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Function;
 
-final public class FastReader {
+@SuppressWarnings("unused")
+public final class FastReader {
     private final InputStream stream;
     private final byte[] buffer;
     private int length = 0;

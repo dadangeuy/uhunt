@@ -17,7 +17,8 @@ import java.util.Set;
  * Template: {@link FlowNetwork} (Revision 1).<br>
  * Reference: <a href="https://cp-algorithms.com/graph/edmonds_karp.html">Algorithms for Competitive Programming</a>.<br>
  */
-public class FlowNetwork<V> {
+@SuppressWarnings("unused")
+public final class FlowNetwork<V> {
     private final V source;
     private final V sink;
     private final Map<V, Map<V, Integer>> pipes;

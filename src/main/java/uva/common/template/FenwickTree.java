@@ -1,5 +1,6 @@
 package uva.common.template;
 
+@SuppressWarnings("unused")
 public final class FenwickTree {
     private final int length;
     private final int[] sumTree;
