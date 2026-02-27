@@ -1,0 +1,15 @@
+package uva.uhunt.c1.g5.p13025;
+
+import uva.common.helper.TestHelper;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+public class MainTest {
+
+
+    @Test
+    @Timeout(1)
+    public void sample() throws Exception {
+        TestHelper.run(Main::main, "sample");
+    }
+}
