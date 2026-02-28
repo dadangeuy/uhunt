@@ -161,37 +161,21 @@ class Process {
         output.totalAnswers = input.totalQueries;
         output.answers = new char[input.totalQueries];
 
-        final DisjointSet connectedComponents = new DisjointSet(input.totalRooms);
-        for (int[] corridor : input.corridors) {
-            connectedComponents.union(corridor[0], corridor[1]);
-        }
-
         final UndirectedGraph graph = createGraph(input);
         final TarjanBridges tarjanBridges = new TarjanBridges(graph);
-        final DisjointSet bridgeConnectedComponents = new DisjointSet(input.totalRooms);
-
         final int[][] bridges = tarjanBridges.getBridges();
+
+        final DisjointSet connectedComponents = new DisjointSet(input.totalRooms);
         for (final int[] bridge : bridges) {
-            bridgeConnectedComponents.union(bridge[0], bridge[1]);
+            connectedComponents.union(bridge[0], bridge[1]);
         }
 
         for (int i = 0; i < input.totalQueries; i++) {
             final int[] query = input.queries[i];
             final int cc1 = connectedComponents.find(query[0]);
             final int cc2 = connectedComponents.find(query[1]);
-            if (cc1 != cc2) {
-                output.answers[i] = 'N';
-                continue;
-            }
-
-            final int bcc1 = bridgeConnectedComponents.find(query[0]);
-            final int bcc2 = bridgeConnectedComponents.find(query[1]);
-            if (bcc1 != bcc2) {
-                output.answers[i] = 'N';
-                continue;
-            }
-
-            output.answers[i] = 'Y';
+            final boolean hasOnePath = cc1 == cc2;
+            output.answers[i] = hasOnePath? 'Y' : 'N';
         }
 
         return output;
