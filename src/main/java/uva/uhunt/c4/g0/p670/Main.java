@@ -172,7 +172,7 @@ class Coordinate {
 /**
  * Algorithm to compute maximal flow in a flow network, based on Edmonds-Karp algorithm.<br>
  * Time Complexity: O(V*E^2).<br>
- * Template: {@link uva.common.template.FlowNetwork} (Revision 1).<br>
+ * Template: {@link uva.common.template.generic.FlowNetwork} (Revision 1).<br>
  * Reference: <a href="https://cp-algorithms.com/graph/edmonds_karp.html">Algorithms for Competitive Programming</a>.<br>
  */
 class FlowNetwork<V> {

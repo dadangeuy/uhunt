@@ -1,4 +1,4 @@
-package uva.common.template;
+package uva.common.template.generic;
 
 @SuppressWarnings("unused")
 public final class FenwickTree {

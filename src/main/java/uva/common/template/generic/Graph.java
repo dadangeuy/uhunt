@@ -1,4 +1,4 @@
-package uva.common.template;
+package uva.common.template.generic;
 
 import java.util.Collections;
 import java.util.HashMap;

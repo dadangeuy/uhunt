@@ -1,4 +1,4 @@
-package uva.common.template;
+package uva.common.template.io;
 
 import java.io.IOException;
 import java.io.InputStream;
