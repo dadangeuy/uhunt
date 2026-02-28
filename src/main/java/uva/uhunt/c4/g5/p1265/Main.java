@@ -67,25 +67,25 @@ class Process {
 
         final List<Edge> edges = getEdges(input);
         final List<Edge> minimumSpanningTreeEdges = getMinimumSpanningTreeOfMaximumWeight(edges);
-        final DisjointSet<Integer> sccSet = new DisjointSet<>();
-        final Map<Integer, Set<Integer>> verticesPerSCC = new HashMap<>();
+        final DisjointSet<Integer> ccSet = new DisjointSet<>();
+        final Map<Integer, Set<Integer>> verticesPerCC = new HashMap<>();
 
         // loop edge from the greatest weight
         // this will create subgraph consisting of greatest edge at every iteration
         for (final Edge edge : minimumSpanningTreeEdges) {
-            // find scc subgraph of vertex1 and vertex2
-            final int scc1 = sccSet.find(edge.vertex1);
-            final int scc2 = sccSet.find(edge.vertex2);
-            final Set<Integer> vertices1 = verticesPerSCC.getOrDefault(scc1, Collections.singleton(scc1));
-            final Set<Integer> vertices2 = verticesPerSCC.getOrDefault(scc2, Collections.singleton(scc2));
+            // find connected components of vertex1 and vertex2
+            final int cc1 = ccSet.find(edge.vertex1);
+            final int cc2 = ccSet.find(edge.vertex2);
+            final Set<Integer> vertices1 = verticesPerCC.getOrDefault(cc1, Collections.singleton(cc1));
+            final Set<Integer> vertices2 = verticesPerCC.getOrDefault(cc2, Collections.singleton(cc2));
 
-            // combine scc subgraph of vertex1 and vertex2
-            sccSet.union(edge.vertex1, edge.vertex2);
-            final int scc = sccSet.find(scc1);
+            // combine connected components of vertex1 and vertex2
+            ccSet.union(edge.vertex1, edge.vertex2);
+            final int cc = ccSet.find(cc1);
             final Set<Integer> vertices = Stream
                 .concat(vertices1.stream(), vertices2.stream())
                 .collect(Collectors.toSet());
-            verticesPerSCC.put(scc, vertices);
+            verticesPerCC.put(cc, vertices);
 
             // validate constraint
             if (isValidSubGraph(edges, vertices)) {
