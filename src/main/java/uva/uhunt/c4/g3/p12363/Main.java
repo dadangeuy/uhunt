@@ -275,58 +275,65 @@ final class UndirectedGraph {
 }
 
 final class TarjanBridges {
+    private static final int NULL = -1;
+
     private final UndirectedGraph graph;
-    private final boolean[] visited;
-    private final int[] discovery;
-    private final int[] low;
-    private LinkedList<int[]> bridges;
-    private int timer;
+    private int[] discovery;
+    private int[] low;
+    private int[] parent;
+    private LinkedList<int[]> bridgeList;
+    private int[][] bridges;
+    private int time;
 
     public TarjanBridges(final UndirectedGraph graph) {
         this.graph = graph;
-        this.visited = new boolean[graph.get().length];
+        initArrays();
+        initBridges();
+    }
+
+    private void initArrays() {
         this.discovery = new int[graph.get().length];
         this.low = new int[graph.get().length];
-        this.bridges = null;
-        this.timer = 0;
+        this.parent = new int[graph.get().length];
 
-        Arrays.fill(discovery, -1);
-        Arrays.fill(low, -1);
+        Arrays.fill(discovery, NULL);
+        Arrays.fill(low, NULL);
+        Arrays.fill(parent, NULL);
     }
 
-    public int[][] getBridges() {
-        if (bridges == null) {
-            bridges = new LinkedList<>();
-            for (int vertex = 0; vertex < graph.get().length; vertex++) {
-                if (!visited[vertex]) dfs(-1, vertex);
+    private void initBridges() {
+        this.bridgeList = new LinkedList<>();
+        for (int vertex = 0; vertex < graph.get().length; vertex++) {
+            if (discovery[vertex] == NULL) {
+                depthFirstSearch(vertex);
             }
         }
-
-        return bridges.toArray(new int[0][0]);
+        bridges = bridgeList.toArray(new int[0][0]);
     }
 
-    private void dfs(final int prevVertex, final int vertex) {
-        visited[vertex] = true;
-        discovery[vertex] = low[vertex] = timer++;
-        boolean parent_skipped = false;
-
+    private void depthFirstSearch(final int vertex) {
+        discovery[vertex] = low[vertex] = ++time;
         for (int nextVertex : graph.get(vertex)) {
-            if (prevVertex == nextVertex && !parent_skipped) {
-                parent_skipped = true;
-            } else if (visited[nextVertex]) {
-                low[vertex] = Math.min(low[vertex], discovery[nextVertex]);
-            } else {
-                dfs(vertex, nextVertex);
+            if (discovery[nextVertex] == NULL) {
+                parent[nextVertex] = vertex;
+                depthFirstSearch(nextVertex);
                 low[vertex] = Math.min(low[vertex], low[nextVertex]);
+
                 if (low[nextVertex] > discovery[vertex]) {
                     foundBridge(vertex, nextVertex);
                     foundBridge(nextVertex, vertex);
                 }
+            } else if (nextVertex != parent[vertex]) {
+                low[vertex] = Math.min(low[vertex], discovery[nextVertex]);
             }
         }
     }
 
     private void foundBridge(final int fromVertex, final int intoVertex) {
-        bridges.addLast(new int[]{fromVertex, intoVertex});
+        bridgeList.addLast(new int[]{fromVertex, intoVertex});
+    }
+
+    public int[][] getBridges() {
+        return bridges;
     }
 }
