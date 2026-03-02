@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.util.function.Function;
 
 @SuppressWarnings("unused")
-public final class FastReader {
+final class FastReader {
     private final InputStream stream;
     private final byte[] buffer;
     private int length = 0;
