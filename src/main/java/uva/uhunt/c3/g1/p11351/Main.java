@@ -91,7 +91,7 @@ class Process {
     }
 
     private int josephus(final int totalPeoples, final int interval) {
-        if (totalPeoples == 0) return 1;
+        if (totalPeoples == 1) return 0;
         return (josephus(totalPeoples - 1, interval) + interval) % totalPeoples;
     }
 }
