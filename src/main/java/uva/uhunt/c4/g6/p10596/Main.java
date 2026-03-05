@@ -3,9 +3,8 @@ package uva.uhunt.c4.g6.p10596;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.PrintWriter;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
@@ -59,25 +58,24 @@ class Process {
 
         final int maxVertex = input.totalIntersections - 1;
         final int[][] edges = input.roads;
-        output.isPossible = isEulerianCycle(maxVertex, edges);
+        output.isPossible = hasEulerianCycle(maxVertex, edges);
 
         return output;
     }
 
-    private boolean isEulerianCycle(final int maxVertex, final int[][] edges) {
-        return isConnectedGraph(maxVertex, edges) && hasNoVerticesWithOddDegrees(maxVertex, edges);
+    private boolean hasEulerianCycle(final int maxVertex, final int[][] edges) {
+        return isConnectedGraph(maxVertex, edges) && hasEvenDegreesOnly(maxVertex, edges);
     }
 
     private boolean isConnectedGraph(final int maxVertex, final int[][] edges) {
         final DisjointSet connectedComponents = getConnectedComponents(maxVertex, edges);
-        final Set<Integer> groups = new HashSet<>();
-        for (final int[] edge : edges) {
-            for (final int vertex : edge) {
-                final int group = connectedComponents.find(vertex);
-                groups.add(group);
-            }
-        }
-        return groups.size() == 1;
+        final int[] degrees = getDegrees(maxVertex, edges);
+        final int[] groups = IntStream.rangeClosed(0, maxVertex)
+            .filter(vertex -> degrees[vertex] > 0)
+            .map(connectedComponents::find)
+            .distinct()
+            .toArray();
+        return groups.length == 1;
     }
 
     private DisjointSet getConnectedComponents(final int maxVertex, final int[][] edges) {
@@ -86,27 +84,19 @@ class Process {
         return set;
     }
 
-    private boolean hasNoVerticesWithOddDegrees(final int maxVertex, final int[][] edges) {
-        return getTotalVerticesWithOddDegrees(maxVertex, edges) == 0;
+    private boolean hasEvenDegreesOnly(final int maxVertex, final int[][] edges) {
+        final int[] degrees = getDegrees(maxVertex, edges);
+        return Arrays.stream(degrees).allMatch(degree -> degree % 2 == 0);
     }
 
-    private int getTotalVerticesWithOddDegrees(final int maxVertex, final int[][] edges) {
-        final int[] degreesPerVertex = getDegreesPerVertex(maxVertex, edges);
-
-        return (int) IntStream.rangeClosed(0, maxVertex)
-            .map(vertex -> degreesPerVertex[vertex])
-            .filter(degrees -> degrees % 2 != 0)
-            .count();
-    }
-
-    private int[] getDegreesPerVertex(final int maxVertex, final int[][] edges) {
-        final int[] degreesPerVertex = new int[maxVertex + 1];
+    private int[] getDegrees(final int maxVertex, final int[][] edges) {
+        final int[] degrees = new int[maxVertex + 1];
         for (final int[] edge : edges) {
             for (final int vertex : edge) {
-                degreesPerVertex[vertex]++;
+                degrees[vertex]++;
             }
         }
-        return degreesPerVertex;
+        return degrees;
     }
 }
 
