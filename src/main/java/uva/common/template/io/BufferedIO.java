@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
+@SuppressWarnings("unused")
 final class BufferedIO {
     private final BufferedReader in;
     private final BufferedWriter out;
@@ -28,14 +29,13 @@ final class BufferedIO {
         return line;
     }
 
-    public BufferedIO write(final String format, Object... args) throws IOException {
+    public void write(final String format, Object... args) throws IOException {
         final String string = String.format(format, args);
-        return write(string);
+        write(string);
     }
 
-    public BufferedIO write(final String string) throws IOException {
+    public void write(final String string) throws IOException {
         out.write(string);
-        return this;
     }
 
     public void close() throws IOException {
