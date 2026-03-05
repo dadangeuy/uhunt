@@ -1,18 +1,16 @@
 package uva.common.template.primitive;
 
-import java.util.Arrays;
-
 @SuppressWarnings("unused")
 final class DisjointSet {
     private final int[] parents;
 
     public DisjointSet(final int maxVertex) {
         parents = new int[maxVertex + 1];
-        Arrays.fill(parents, -1);
+        for (int vertex = 0; vertex <= maxVertex; vertex++) parents[vertex] = vertex;
     }
 
     public int find(final int child) {
-        final int parent = parents[child] == -1 ? child : parents[child];
+        final int parent = parents[child];
         if (parent == child) {
             return parent;
         } else {
